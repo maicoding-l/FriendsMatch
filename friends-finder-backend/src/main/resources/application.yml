@@ -1,0 +1,42 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/mai1?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    # driver-class-name 可省略
+    # driver-class-name: com.mysql.cj.jdbc.Driver
+
+  session:
+    timeout: 86400
+    store-type: redis
+    redis:
+      save-mode: on_set_attribute
+      namespace: myapp:session   # 建议加，方便区分 key
+    
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+
+
+
+
+
+
+
