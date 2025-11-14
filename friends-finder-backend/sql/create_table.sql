@@ -35,6 +35,37 @@ create table mai1.tag
 )
     comment '标签';
 
+create table mai1.team
+(
+    id          bigint auto_increment comment 'id'
+        primary key,
+    team_name    varchar(256)                       not null comment '队伍名称',
+    description varchar(512)                                 comment '队伍描述',
+    max_num     int        default 1                not null comment '最大人数',
+    expire_time datetime   null                              comment '过期时间',
+    user_id     bigint                             not null comment '队长',
+    status    int           default 0               not null comment '可见状态 0-公开 1-私有 2-加密',
+    password  varchar(512) null                   comment '密码',
+    create_time datetime default CURRENT_TIMESTAMP not null comment '创建时间',
+    update_time datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+    is_delete   tinyint  default 0                 not null comment '逻辑删除标志'
+)
+    comment '队伍';
+
+create table mai1.user_team
+(
+    id          bigint auto_increment comment 'id'
+        primary key,
+    team_id bigint                                  not null comment '队伍id',
+    user_id bigint                                  not null comment '用户id',
+    join_time datetime   null                              comment '加入时间',
+    create_time datetime default CURRENT_TIMESTAMP not null comment '创建时间',
+    update_time datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+    is_delete   tinyint  default 0                 not null comment '逻辑删除标志'
+)
+    comment '用户队伍关系';
+
+
 create index uk_tag_user_id
     on mai1.tag (user_id)
     comment '上传用户普通索引';

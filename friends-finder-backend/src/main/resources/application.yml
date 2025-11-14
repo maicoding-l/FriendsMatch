@@ -17,7 +17,12 @@ spring:
     redis:
       save-mode: on_set_attribute
       namespace: myapp:session   # 建议加，方便区分 key
-    
+
+  jackson:
+    date-format: yyyy-MM-dd HH.mm.ss
+    time-zone: GMT+8                    #时区
+    locale: zh_CN
+
 
   data:
     redis:

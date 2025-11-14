@@ -2,21 +2,20 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.mai.friendsFinder.mapper.TeamMapper">
+<mapper namespace="com.mai.friendsFinder.mapper.UserTeamMapper">
 
-    <resultMap id="BaseResultMap" type="com.mai.friendsFinder.model.Tag">
+    <resultMap id="BaseResultMap" type="com.mai.friendsFinder.model.UserTeam">
             <id property="id" column="id" />
-            <result property="tagName" column="tag_name" />
+            <result property="teamId" column="team_id" />
             <result property="userId" column="user_id" />
-            <result property="parentId" column="parent_id" />
-            <result property="isParent" column="is_parent" />
+            <result property="joinTime" column="join_time" />
             <result property="createTime" column="create_time" />
             <result property="updateTime" column="update_time" />
             <result property="isDelete" column="is_delete" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,tag_name,user_id,parent_id,is_parent,create_time,
-        update_time,is_delete
+        id,team_id,user_id,join_time,create_time,update_time,
+        is_delete
     </sql>
 </mapper>

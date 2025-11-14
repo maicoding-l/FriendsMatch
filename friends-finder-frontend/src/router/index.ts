@@ -8,6 +8,7 @@ import SearchPage from '../pages/Search.vue'
 import UserEditPage from '../pages/UserEdit.vue'
 import SearchResultPage from '../pages/SearchResultPage.vue'
 import UserLoginPage from '../pages/UserLogin.vue'
+import TeamAddPage from '../pages/TeamAddPage.vue'
 
 const routes: Array<RouteRecordRaw> = [
   { path: '/', name: 'IndexPage', component: IndexPage },
@@ -17,6 +18,7 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/user/edit', name: 'UserEditPage', component: UserEditPage },
   { path: '/user/list', name: 'SearchResultPage', component: SearchResultPage },
   { path: '/login', name: 'UserLoginPage', component: UserLoginPage },
+  { path: '/team/add', name: 'TeamAddPage', component: TeamAddPage }
 ]
 
 const router = createRouter({

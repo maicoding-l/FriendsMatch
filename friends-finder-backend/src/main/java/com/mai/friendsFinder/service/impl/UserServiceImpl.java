@@ -166,6 +166,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         return user!=null&&user.getUserRole()==ADMIN_ROLE;
     }
 
+    @Override
+    public boolean isAdmin(User user) {
+        return user!=null&&user.getUserRole()==ADMIN_ROLE;
+    }
+
 
     /**
      * 修改用户信息
