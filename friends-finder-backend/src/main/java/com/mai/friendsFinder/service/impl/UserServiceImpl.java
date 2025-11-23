@@ -11,10 +11,12 @@ import com.mai.friendsFinder.model.User;
 import com.mai.friendsFinder.service.UserService;
 import com.mai.friendsFinder.exception.BusinessException;
 import com.mai.friendsFinder.common.ErrorCode;
+import com.mai.friendsFinder.utils.AlgorithmUtils;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -302,6 +304,50 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             log.error("redis key error",e.getMessage());
         }
         return userPage;
+    }
+
+    @Override
+    public List<User> matchUsers(long num, User loginUser) {
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.select("id" , "tags");
+        List<User> userList = userMapper.selectList(queryWrapper);
+        String Tags = loginUser.getTags();
+        Gson gson = new Gson();
+        List<String>  tagsList = gson.fromJson(Tags, new TypeToken<List<String>>() {}.getType());
+        //用户列表的下标=>相似度
+        List<Pair<User,Long>> list = new ArrayList<>();
+        for(User user : userList){
+            String tagsStr = user.getTags();
+            if(StringUtils.isBlank(tagsStr)||user.getId()==loginUser.getId()){
+                continue;
+            }
+            List<String> userTagsList = gson.fromJson(tagsStr, new TypeToken<List<String>>() {}.getType());
+            long distance = AlgorithmUtils.minDistance(tagsList, userTagsList);
+            list.add(Pair.of(user, distance));
+        }
+        //按编辑距离由小到大排序
+        List<Pair<User,Long>> topUserPairList = list.stream().
+                sorted((a,b)->(int)(a.getValue()-b.getValue()))
+                .limit(num).
+                collect(Collectors.toList());
+        //原本顺序的UserId列表
+        List<Long>  userIdList = topUserPairList.stream()
+                .map(pair->pair.getLeft().getId())
+                .collect(Collectors.toList());
+        QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
+        userQueryWrapper.in("user_id",userIdList);
+        // 1, 3, 2
+        // User1、User2、User3
+        // 1 => User1, 2 => User2, 3 => User3
+        Map<Long,List<User>> userIdUserListMap = this.list(userQueryWrapper).stream()
+                .map(user->getSafetyUser(user))
+                .collect(Collectors.groupingBy(User::getId));
+
+        List<User> finalUserList = new ArrayList<>();
+        for(Long userId : userIdList){
+            finalUserList.add(userIdUserListMap.get(userId).get(0));
+        }
+        return finalUserList;
     }
 }
 

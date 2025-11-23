@@ -7,6 +7,7 @@ import lombok.Data;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 @Data
 public class TeamUserVO implements Serializable {
@@ -73,10 +74,17 @@ public class TeamUserVO implements Serializable {
     /**
      * 已加入的用户数
      */
-    private String hasJoinNum;
+    private Long hasJoinNum;
+
+    /**
+     * 已加入的用户ID列表（不包括队长）
+     */
+    private List<Long> MembersList;
 
     /**
      * 是否已加入队伍
      */
     private boolean hasJoin = false;
+
+
 }

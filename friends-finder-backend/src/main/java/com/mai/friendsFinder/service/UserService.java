@@ -86,4 +86,15 @@ public interface UserService extends IService<User> {
 
     public Page<User> usersRecommend(User loginUser,long pageNo, long pageSize);
 
+
+    /**
+     * 用户匹配
+     *
+     *
+     * @param num
+     * @param loginUser
+     * @return
+     */
+    public List<User> matchUsers (long num , User loginUser);
+
 }

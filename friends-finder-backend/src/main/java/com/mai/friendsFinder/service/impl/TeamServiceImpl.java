@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 
 /**
@@ -132,14 +133,17 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
     @Override
     public List<TeamUserVO> listTeams(TeamQuery teamQuery, boolean isAdmin) {
         QueryWrapper<Team> queryWrapper = new QueryWrapper<>();
-        if(!isAdmin){
-            throw new BusinessException(ErrorCode.NO_AUTH);
-        }
         if(teamQuery!=null){
             Long id = teamQuery.getId();
             if(id!=null&&id>0){
                 queryWrapper.eq("ID",id);
             }
+            //查询加入队伍
+            List<Long> idList = teamQuery.getIdList();
+            if(!CollectionUtils.isEmpty(idList)){
+                queryWrapper.in("ID",idList);
+            }
+            //按searchText查询名称或描述
             String searchText = teamQuery.getSearchText();
             if(StringUtils.isNotBlank(searchText)){
                 queryWrapper.like("TEAM_NAME",searchText).or().like("DESCRIPTION",searchText).or().like("EXPIRE_TIME",searchText);
@@ -170,7 +174,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             if(statusEnum==null){
                 statusEnum = TeamStatusEnum.PUBLIC;
             }
-            if(!isAdmin&&statusEnum.equals(TeamStatusEnum.PUBLIC)){
+            if(!isAdmin&&!statusEnum.equals(TeamStatusEnum.PUBLIC)){
                 throw new BusinessException(ErrorCode.NO_AUTH);
             }
             queryWrapper.eq("STATUS",statusEnum.getValue());
@@ -183,7 +187,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             return new ArrayList<>();
         }
         List<TeamUserVO> teamUserVOList = new ArrayList<>();
-        //查询创始人相关的用户信息
+        //查询创始人相关的用户信息和成员ID信息
         for(Team team:teamList){
             Long userId = team.getUserId();
             if (userId == null) {
@@ -192,7 +196,19 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             User user = userService.getById(userId);
             TeamUserVO teamUserVO = new TeamUserVO();
             BeanUtils.copyProperties(team,teamUserVO);
-
+            //设置加入队伍人数
+            Long TeamId = team.getId();
+            Long hasJoinNum = this.countTeamUserByTeamId(TeamId);
+            teamUserVO.setHasJoinNum(hasJoinNum);
+            //设置加入队伍人员ID
+            List<Long> membersId = userTeamService.lambdaQuery()
+                    .select(UserTeam::getUserId)
+                    .eq(UserTeam::getTeamId, TeamId)
+                    .list()
+                    .stream()
+                    .map(UserTeam::getUserId)
+                    .collect(Collectors.toList());
+            teamUserVO.setMembersList(membersId);
             //脱敏用户信息
             if(user!=null){
                 UserVO userVO = new UserVO();

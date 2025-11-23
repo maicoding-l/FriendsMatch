@@ -14,6 +14,6 @@ export type UserType = {
   userState: number
   userRole: number
   planetCode: string
-  tags: string[]
+  tags: string
   createTime: Date
 }
