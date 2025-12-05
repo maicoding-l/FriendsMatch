@@ -2,7 +2,7 @@
   <div class="layout">
     <div id="nav_bar">
       <van-nav-bar
-        title="标题"
+        :title="title"
         left-text="返回"
         left-arrow
         @click-left="returnToPre"
@@ -34,18 +34,34 @@
 
 <script setup>
 import { ref } from 'vue'
-import router from '../router/index.ts'
+import router, { routes } from '../router/index.ts'
+import { showToast } from 'vant'
 
 const active = ref('index')
+const title = ref('')
+
 const onChange = () => {
   showToast(active.value)
 }
+
 const toSearch = () => {
   router.push({ path: '/search' })
 }
+
 const returnToPre = () => {
-  router.back() // 或者 router.go(-1)
+  router.back()
 }
+
+/**
+ * 根据路由切换标题
+ */
+router.beforeEach((to) => {
+  const toPath = to.path
+  const route = routes.find((route) => {
+    return toPath === route.path
+  })
+  title.value = route?.name ?? ''
+})
 </script>
 
 <style scoped>

@@ -80,7 +80,7 @@ public class TeamController {
      */
     @Operation(summary = "解散队伍")
     @PostMapping("/delete")
-    public BaseResponse<Boolean> deleteTeam(@RequestBody Long id, HttpServletRequest request) {
+    public BaseResponse<Boolean> deleteTeam(@RequestParam Long id, HttpServletRequest request) {
         if(id==null||id<0){
             throw new BusinessException(ErrorCode.PARAMS_ERROR,"队伍id不正确");
         }

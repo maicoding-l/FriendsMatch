@@ -12,7 +12,7 @@ export type TeamType = {
   maxNum: number
   expireTime?: Date //？表示可有可无
   // todo做成枚举类型
-  status: 0
+  status: 0 | 1 | 2
   password: string
   createTime: Date
   updateTime: Date

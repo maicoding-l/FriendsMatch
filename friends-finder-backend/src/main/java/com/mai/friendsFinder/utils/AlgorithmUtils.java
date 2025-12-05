@@ -1,7 +1,10 @@
 package com.mai.friendsFinder.utils;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class AlgorithmUtils {
     /**
@@ -12,72 +15,67 @@ public class AlgorithmUtils {
      * @return
      */
     public static int minDistance(List<String> tagList1, List<String> tagList2) {
-        int n = tagList1.size();
-        int m = tagList2.size();
+        Set<String> set1 = new HashSet<>(tagList1);
+        Set<String> set2 = new HashSet<>(tagList2);
 
-        if (n * m == 0) {
-            return n + m;
-        }
+        // 交集
+        Set<String> intersection = new HashSet<>(set1);
+        intersection.retainAll(set2);
 
-        int[][] d = new int[n + 1][m + 1];
-        for (int i = 0; i < n + 1; i++) {
-            d[i][0] = i;
-        }
+        int common = intersection.size();
+        int total = set1.size() + set2.size();
 
-        for (int j = 0; j < m + 1; j++) {
-            d[0][j] = j;
-        }
-
-        for (int i = 1; i < n + 1; i++) {
-            for (int j = 1; j < m + 1; j++) {
-                int left = d[i - 1][j] + 1;
-                int down = d[i][j - 1] + 1;
-                int left_down = d[i - 1][j - 1];
-                if (!Objects.equals(tagList1.get(i - 1), tagList2.get(j - 1))) {
-                    left_down += 1;
-                }
-                d[i][j] = Math.min(left, Math.min(down, left_down));
-            }
-        }
-        return d[n][m];
+        // 对称差集大小 = |A| + |B| - 2 * |A ∩ B|
+        return (int) (total - 2L * common);
     }
+
 
     /**
-     * 编辑距离算法（用于计算最相似的两个字符串）
-     * 原理：https://blog.csdn.net/DBC_121/article/details/104198838
-     *
-     * @param word1
-     * @param word2
+     * Jaccard 相似度计算
+     * @param tagList1
+     * @param tagList2
      * @return
      */
-    public static int minDistance(String word1, String word2) {
-        int n = word1.length();
-        int m = word2.length();
-
-        if (n * m == 0) {
-            return n + m;
+    public static double calcSimilarity(List<String> tagList1, List<String> tagList2) {
+        if (tagList1 == null || tagList2 == null || tagList1.isEmpty() || tagList2.isEmpty()) {
+            // 只要有一边没标签，相似度统一按 0 处理
+            return 0.0;
         }
 
-        int[][] d = new int[n + 1][m + 1];
-        for (int i = 0; i < n + 1; i++) {
-            d[i][0] = i;
+        // 统一做一下清洗：去掉前后空格、去除 null
+        Set<String> set1 = tagList1.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
+
+        Set<String> set2 = tagList2.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
+
+        if (set1.isEmpty() || set2.isEmpty()) {
+            return 0.0;
         }
 
-        for (int j = 0; j < m + 1; j++) {
-            d[0][j] = j;
+        // 交集
+        Set<String> intersection = new HashSet<>(set1);
+        intersection.retainAll(set2);
+
+        // 并集
+        Set<String> union = new HashSet<>(set1);
+        union.addAll(set2);
+
+        if (union.isEmpty()) {
+            return 0.0;
         }
 
-        for (int i = 1; i < n + 1; i++) {
-            for (int j = 1; j < m + 1; j++) {
-                int left = d[i - 1][j] + 1;
-                int down = d[i][j - 1] + 1;
-                int left_down = d[i - 1][j - 1];
-                if (word1.charAt(i - 1) != word2.charAt(j - 1)) {
-                    left_down += 1;
-                }
-                d[i][j] = Math.min(left, Math.min(down, left_down));
-            }
-        }
-        return d[n][m];
+        // Jaccard 相似度
+        return (double) intersection.size() / union.size();
     }
+
+
+
+
 }

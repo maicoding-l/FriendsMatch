@@ -208,7 +208,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Override
     public User getLoginUser(HttpServletRequest request) {
         if(request.getSession().getAttribute(USER_LOGIN_STATE) == null){
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"从session获取当前用户信息时id为空");
+            throw new BusinessException(ErrorCode.NOT_LOGIN,"从session获取当前用户信息时id为空");
         }
         long id = (long) request.getSession().getAttribute(USER_LOGIN_STATE);
         User user = new User();
@@ -308,47 +308,74 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
 
     @Override
     public List<User> matchUsers(long num, User loginUser) {
+        // 1. 查询所有用户的 id + tags
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
-        queryWrapper.select("id" , "tags");
+        queryWrapper.select("id", "tags");
         List<User> userList = userMapper.selectList(queryWrapper);
-        String Tags = loginUser.getTags();
+
+        // 2. 解析当前登录用户的标签
+        String tagsJson = loginUser.getTags();
         Gson gson = new Gson();
-        List<String>  tagsList = gson.fromJson(Tags, new TypeToken<List<String>>() {}.getType());
-        //用户列表的下标=>相似度
-        List<Pair<User,Long>> list = new ArrayList<>();
-        for(User user : userList){
+        List<String> tagsList = gson.fromJson(tagsJson,
+                new TypeToken<List<String>>() {}.getType());
+
+        // 用户 + 相似度
+        List<Pair<User, Double>> list = new ArrayList<>();
+
+        for (User user : userList) {
             String tagsStr = user.getTags();
-            if(StringUtils.isBlank(tagsStr)||user.getId()==loginUser.getId()){
+            // 排除标签为空的、以及自己
+            if (StringUtils.isBlank(tagsStr) || user.getId().equals(loginUser.getId())) {
                 continue;
             }
-            List<String> userTagsList = gson.fromJson(tagsStr, new TypeToken<List<String>>() {}.getType());
-            long distance = AlgorithmUtils.minDistance(tagsList, userTagsList);
-            list.add(Pair.of(user, distance));
+
+            List<String> userTagsList = gson.fromJson(tagsStr,
+                    new TypeToken<List<String>>() {}.getType());
+
+            double similarity = AlgorithmUtils.calcSimilarity(tagsList, userTagsList);
+
+            // 如果你不想相似度为 0 的人也进来，可以这里过滤掉：
+            // if (similarity <= 0) continue;
+
+            list.add(Pair.of(user, similarity));
         }
-        //按编辑距离由小到大排序
-        List<Pair<User,Long>> topUserPairList = list.stream().
-                sorted((a,b)->(int)(a.getValue()-b.getValue()))
-                .limit(num).
-                collect(Collectors.toList());
-        //原本顺序的UserId列表
-        List<Long>  userIdList = topUserPairList.stream()
-                .map(pair->pair.getLeft().getId())
+
+        // 3. 按相似度从大到小排序，取前 num 个
+        List<Pair<User, Double>> topUserPairList = list.stream()
+                .sorted(Comparator.comparingDouble((Pair<User, Double> p) -> p.getValue()).reversed())
+                .limit(num)
                 .collect(Collectors.toList());
+
+
+
+        // 4. 按排序后的顺序提取 id 列表
+        List<Long> userIdList = topUserPairList.stream()
+                .map(pair -> pair.getLeft().getId())
+                .collect(Collectors.toList());
+
+        if (userIdList.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 5. 再查一遍完整用户信息
         QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-        userQueryWrapper.in("user_id",userIdList);
-        // 1, 3, 2
-        // User1、User2、User3
-        // 1 => User1, 2 => User2, 3 => User3
-        Map<Long,List<User>> userIdUserListMap = this.list(userQueryWrapper).stream()
-                .map(user->getSafetyUser(user))
+        userQueryWrapper.in("id", userIdList);
+        Map<Long, List<User>> userIdUserListMap = this.list(userQueryWrapper).stream()
+                .map(this::getSafetyUser)
                 .collect(Collectors.groupingBy(User::getId));
 
+        // 6. 保证顺序和相似度排序一致
         List<User> finalUserList = new ArrayList<>();
-        for(Long userId : userIdList){
-            finalUserList.add(userIdUserListMap.get(userId).get(0));
+        for (Long userId : userIdList) {
+            List<User> users = userIdUserListMap.get(userId);
+            if (users != null && !users.isEmpty()) {
+                finalUserList.add(users.get(0));
+            }
         }
+
         return finalUserList;
     }
+
 }
 
 

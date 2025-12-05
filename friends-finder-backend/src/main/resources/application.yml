@@ -10,7 +10,6 @@ spring:
     password: 123456
     # driver-class-name 可省略
     # driver-class-name: com.mysql.cj.jdbc.Driver
-
   session:
     timeout: 86400
     store-type: redis
@@ -22,6 +21,14 @@ spring:
     date-format: yyyy-MM-dd HH.mm.ss
     time-zone: GMT+8                    #时区
     locale: zh_CN
+
+  devtools:
+    restart:
+      enabled: true  #设置开启热部署
+      additional-paths: src/main/java #重启目录
+      exclude: WEB-INF/**
+  thymeleaf:
+    cache: false #使用Thymeleaf模板引擎，关闭缓存
 
 
   data:
@@ -37,6 +44,8 @@ springdoc:
   swagger-ui:
     tags-sorter: alpha
     operations-sorter: alpha
+
+
 
 
 

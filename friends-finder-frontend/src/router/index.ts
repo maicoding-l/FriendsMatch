@@ -15,18 +15,18 @@ import UserTeamCreatePage from '../pages/UserTeamCreatePage.vue'
 import UserTeamJoinPage from '../pages/UserTeamJoinPage.vue'
 
 const routes: Array<RouteRecordRaw> = [
-  { path: '/', name: 'IndexPage', component: IndexPage },
-  { path: '/team', name: 'TeamPage', component: TeamPage },
-  { path: '/user', name: 'UserPage', component: UserPage },
-  { path: '/search', name: 'SearchPage', component: SearchPage },
-  { path: '/user/edit', name: 'UserEditPage', component: UserEditPage },
-  { path: '/user/list', name: 'SearchResultPage', component: SearchResultPage },
-  { path: '/login', name: 'UserLoginPage', component: UserLoginPage },
-  { path: '/team/add', name: 'TeamAddPage', component: TeamAddPage },
-  { path: '/team/update', name:'TeamUpdatePage', component: TeamUpdatePage },
-  { path: '/user/update', name:'UserUpdatePage', component: UserUpdatePage },
-  { path: '/user/create', name:'UserTeamCreatePage', component: UserTeamCreatePage },
-  { path: '/user/join', name:'UserTeamJoinPage', component: UserTeamJoinPage }
+  { path: '/', name: '首页', component: IndexPage },
+  { path: '/team', name: '找队伍', component: TeamPage },
+  { path: '/user', name: '个人信息', component: UserPage },
+  { path: '/search', name: '找伙伴', component: SearchPage },
+  { path: '/user/edit', name: '编辑信息', component: UserEditPage },
+  { path: '/user/list', name: '用户列表', component: SearchResultPage },
+  { path: '/login', name: '登录', component: UserLoginPage },
+  { path: '/team/add', name: '新增队伍', component: TeamAddPage },
+  { path: '/team/update', name: '修改队伍信息', component: TeamUpdatePage },
+  { path: '/user/update', name: '更新信息', component: UserUpdatePage },
+  { path: '/user/create', name: '创建队伍', component: UserTeamCreatePage },
+  { path: '/user/join', name: '加入队伍', component: UserTeamJoinPage },
 ]
 
 const router = createRouter({
@@ -35,3 +35,4 @@ const router = createRouter({
 })
 
 export default router
+export { routes }

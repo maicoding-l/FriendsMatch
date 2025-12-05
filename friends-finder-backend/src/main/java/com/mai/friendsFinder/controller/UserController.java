@@ -189,5 +189,24 @@ public class UserController {
         return ResultUtils.success(result);
     }
 
+    /**
+     * 匹配用户接口
+     * @param num
+     * @param request
+     * @return
+     */
+    @Operation(summary = "匹配用户")
+    @GetMapping("/match")
+    public BaseResponse<List<User>> matchUsers(Long num, HttpServletRequest request){
+        User loginUser = userService.getLoginUser(request);
+        if(loginUser == null){
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        if(num==null ||num <= 0){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        List<User> userList = userService.matchUsers(num,loginUser);
+        return ResultUtils.success(userList);
+    }
 
 }
