@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.mai.friendsFinder.mapper.ItemMapper">
+
+    <resultMap id="BaseResultMap" type="com.mai.friendsFinder.model.Item">
+            <id property="id" column="id" />
+            <result property="itemType" column="item_type" />
+            <result property="title" column="title" />
+            <result property="coverUrl" column="cover_url" />
+            <result property="description" column="description" />
+            <result property="creator" column="creator" />
+            <result property="publishYear" column="publish_year" />
+            <result property="tags" column="tags" />
+            <result property="popularity" column="popularity" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+            <result property="isDelete" column="is_delete" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,item_type,title,cover_url,description,creator,
+        publish_year,tags,popularity,create_time,update_time,
+        is_delete
+    </sql>
+</mapper>

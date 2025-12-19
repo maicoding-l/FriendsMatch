@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>InterestNexus - 书影音兴趣图谱社交</title>
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vant/lib/vant.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/vant/lib/index.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #6c5ce7;
+            --secondary-color: #a29bfe;
+            --dark-bg: #0f0f1e;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --text-sub: #b2bec3;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--dark-bg);
+            font-family: 'PingFang SC', sans-serif;
+            overflow: hidden; /* 防止滚动，APP感 */
+            color: var(--text-main);
+        }
+
+        /* Three.js 背景层 */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(to bottom, #0f0f1e, #2d3436);
+        }
+
+        /* 磨砂玻璃容器 */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding-bottom: 60px; /* 留出底部导航位置 */
+        }
+
+        /* 覆盖 Vant 默认样式以适应暗黑主题 */
+        .van-nav-bar { background: transparent !important; }
+        .van-nav-bar__title { color: white !important; font-weight: 800; font-size: 18px; }
+        .van-nav-bar::after { border: none; }
+        .van-tabbar { background: rgba(15, 15, 30, 0.9) !important; border-top: 1px solid #333; }
+        .van-tabbar-item { background: transparent !important; }
+        .van-tabbar-item--active { color: var(--secondary-color) !important; }
+        .van-search { background: transparent !important; padding: 10px 16px; }
+        .van-search__content { background: rgba(255,255,255,0.15) !important; border-radius: 20px; }
+        .van-field__control { color: white !important; }
+
+        /* 图谱容器 */
+        #graph-chart { width: 100%; height: 400px; border-radius: 12px; }
+        #radar-chart { width: 100%; height: 250px; }
+
+        .tag-pill {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            margin-right: 6px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        .media-cover {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+
+<div id="app">
+    <div class="app-container">
+        <van-nav-bar :title="navTitle" fixed placeholder z-index="99"></van-nav-bar>
+
+        <div v-show="activeTab === 0" style="padding: 16px;">
+            <van-search v-model="searchValue" placeholder="搜索书籍/电影/音乐/用户..."></van-search>
+            
+            <div class="glass-card" style="margin-top: 10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-weight:bold; font-size:16px;">✨ 猜你喜欢 (PersonalRank)</span>
+                    <van-icon name="replay" color="#a29bfe"></van-icon>
+                </div>
+                <van-row gutter="10">
+                    <van-col span="12" v-for="item in recommendItems" :key="item.id">
+                        <div style="margin-bottom: 15px;">
+                            <img :src="item.img" class="media-cover">
+                            <div style="font-size:14px; margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ item.title }}</div>
+                            <div style="font-size:12px; color:var(--text-sub);">
+                                <van-icon name="star" color="#f1c40f"></van-icon> {{ item.score }} | {{ item.type }}
+                            </div>
+                        </div>
+                    </van-col>
+                </van-row>
+            </div>
+        </div>
+
+        <div v-show="activeTab === 1" style="padding: 16px;">
+            <div class="glass-card">
+                <h3 style="margin:0 0 10px 0; font-size:16px;">🌌 你的兴趣宇宙</h3>
+                <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">
+                    基于图神经网络分析，发现你与「Alice」的兴趣重合度高达 87%。
+                </p>
+                <div id="graph-chart"></div>
+            </div>
+
+            <div class="glass-card">
+                <h3 style="margin:0 0 10px 0; font-size:16px;">灵魂匹配</h3>
+                <van-cell-group inset style="background:transparent;">
+                    <van-cell center style="background:transparent; padding-left:0; padding-right:0;">
+                        <template #title>
+                            <span style="color:white; font-weight:bold;">Alice</span>
+                            <span class="tag-pill" style="margin-left:8px;">92% 匹配</span>
+                        </template>
+                        <template #label>
+                            <span style="color:var(--text-sub);">共同喜爱：《星际穿越》、《百年孤独》</span>
+                        </template>
+                        <template #right-icon>
+                            <van-button size="small" color="linear-gradient(to right, #6c5ce7, #a29bfe)">打招呼</van-button>
+                        </template>
+                    </van-cell>
+                </van-cell-group>
+            </div>
+        </div>
+
+        <div v-show="activeTab === 2" style="padding: 16px;">
+            <div style="display:flex; align-items:center; margin-bottom:20px;">
+                <div style="width:60px; height:60px; background:#ddd; border-radius:50%; margin-right:15px; border:2px solid white; overflow:hidden;">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" style="width:100%; height:100%;">
+                </div>
+                <div>
+                    <div style="font-size:20px; font-weight:bold;">梁金麦</div>
+                    <div style="font-size:12px; color:var(--text-sub);">2022级 计算机科学与技术</div>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <h3 style="margin:0 0 10px 0; font-size:16px;">📊 兴趣成分分析</h3>
+                <div id="radar-chart"></div>
+            </div>
+
+            <div class="glass-card">
+                <van-cell title="我的收藏" is-link style="background:transparent; color:white;"></van-cell>
+                <van-cell title="漫游历史" is-link style="background:transparent; color:white;"></van-cell>
+                <van-cell title="系统设置" is-link style="background:transparent; color:white;"></van-cell>
+            </div>
+        </div>
+    </div>
+
+    <van-tabbar v-model="activeTab" active-color="#a29bfe" inactive-color="#7d7e80">
+        <van-tabbar-item icon="apps-o">发现</van-tabbar-item>
+        <van-tabbar-item icon="cluster-o">图谱</van-tabbar-item>
+        <van-tabbar-item icon="user-o">我的</van-tabbar-item>
+    </van-tabbar>
+</div>
+
+<script>
+    const { createApp, ref, onMounted, watch, nextTick } = Vue;
+
+    const app = createApp({
+        setup() {
+            const activeTab = ref(1); // 默认打开图谱页展示核心功能
+            const searchValue = ref('');
+            const navTitle = ref('兴趣图谱');
+
+            // 模拟推荐数据
+            const recommendItems = ref([
+                { id: 1, title: '奥本海默', type: '电影', score: 9.2, img: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&q=80' },
+                { id: 2, title: '红楼梦', type: '书籍', score: 9.5, img: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80' },
+                { id: 3, title: 'Pink Floyd', type: '音乐', score: 9.7, img: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=400&q=80' },
+                { id: 4, title: '赛博朋克:边缘行者', type: '动漫', score: 9.0, img: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&q=80' },
+            ]);
+
+            // 监听 Tab 切换，刷新图表和标题
+            watch(activeTab, (newVal) => {
+                if(newVal === 0) navTitle.value = '发现';
+                if(newVal === 1) {
+                    navTitle.value = '兴趣图谱';
+                    nextTick(() => initGraphChart());
+                }
+                if(newVal === 2) {
+                    navTitle.value = '个人中心';
+                    nextTick(() => initRadarChart());
+                }
+            });
+
+            // 初始化 ECharts 关系图谱
+            const initGraphChart = () => {
+                const chartDom = document.getElementById('graph-chart');
+                if(!chartDom) return;
+                const myChart = echarts.init(chartDom);
+                
+                // 模拟二分图数据：用户(中心) + 物品(书籍/电影/音乐) + 关联用户
+                // 任务书提到：Personalized PageRank 
+                const nodes = [
+                    { id: '0', name: '我(User)', symbolSize: 40, category: 0, x: 300, y: 300, fixed: true },
+                    { id: '1', name: '三体', symbolSize: 25, category: 1 },
+                    { id: '2', name: '肖申克的救赎', symbolSize: 25, category: 2 },
+                    { id: '3', name: '周杰伦', symbolSize: 25, category: 3 },
+                    { id: '4', name: 'Vue.js设计与实现', symbolSize: 20, category: 1 },
+                    { id: '5', name: 'Alice', symbolSize: 30, category: 4 }, // 潜在好友
+                    { id: '6', name: 'Bob', symbolSize: 30, category: 4 },
+                    { id: '7', name: '盗梦空间', symbolSize: 20, category: 2 }
+                ];
+                
+                const links = [
+                    { source: '0', target: '1' },
+                    { source: '0', target: '2' },
+                    { source: '0', target: '3' },
+                    { source: '0', target: '4' },
+                    { source: '5', target: '1' }, // Alice 也喜欢三体
+                    { source: '5', target: '2' }, // Alice 也喜欢肖申克
+                    { source: '5', target: '7' }, // Alice 独有的兴趣
+                    { source: '6', target: '3' },
+                ];
+
+                const option = {
+                    tooltip: {},
+                    legend: { textStyle: { color: '#fff' }, data: ['用户', '书籍', '电影', '音乐', '好友'] },
+                    series: [
+                        {
+                            type: 'graph',
+                            layout: 'force',
+                            data: nodes.map(n => ({ ...n, itemStyle: { color: getColor(n.category) } })),
+                            links: links,
+                            categories: [{name:'用户'}, {name:'书籍'}, {name:'电影'}, {name:'音乐'}, {name:'好友'}],
+                            roam: true,
+                            label: { show: true, position: 'right', color: '#fff' },
+                            force: { repulsion: 200, edgeLength: 80 },
+                            lineStyle: { color: 'source', curveness: 0.3 }
+                        }
+                    ]
+                };
+                myChart.setOption(option);
+            };
+
+            const getColor = (cat) => {
+                const colors = ['#e84393', '#0984e3', '#fdcb6e', '#00b894', '#6c5ce7'];
+                return colors[cat] || '#ccc';
+            };
+
+            // 初始化 ECharts 雷达图
+            const initRadarChart = () => {
+                const chartDom = document.getElementById('radar-chart');
+                if(!chartDom) return;
+                const myChart = echarts.init(chartDom);
+                
+                const option = {
+                    radar: {
+                        indicator: [
+                            { name: '书籍 (Books)', max: 100 },
+                            { name: '电影 (Movies)', max: 100 },
+                            { name: '音乐 (Music)', max: 100 },
+                            { name: '社交活跃', max: 100 },
+                            { name: '图谱深度', max: 100 }
+                        ],
+                        shape: 'circle',
+                        splitArea: { areaStyle: { color: ['rgba(114, 172, 209, 0.1)', 'rgba(114, 172, 209, 0.2)'] } },
+                        axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.5)' } }
+                    },
+                    series: [{
+                        name: '兴趣模型',
+                        type: 'radar',
+                        data: [{ value: [80, 90, 60, 70, 85], name: '我的数据' }],
+                        itemStyle: { color: '#6c5ce7' },
+                        areaStyle: { opacity: 0.5, color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#6c5ce7' }, { offset: 1, color: '#a29bfe' }]) }
+                    }]
+                };
+                myChart.setOption(option);
+            };
+
+            // Three.js 背景动画逻辑
+            const initThreeBackground = () => {
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+                // 创建粒子
+                const geometry = new THREE.BufferGeometry();
+                const count = 500;
+                const positions = new Float32Array(count * 3);
+                for(let i = 0; i < count * 3; i++) {
+                    positions[i] = (Math.random() - 0.5) * 10; // 随机分布
+                }
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                const material = new THREE.PointsMaterial({ size: 0.03, color: 0xa29bfe, transparent: true, opacity: 0.8 });
+                const particles = new THREE.Points(geometry, material);
+                scene.add(particles);
+
+                camera.position.z = 5;
+
+                const animate = function () {
+                    requestAnimationFrame(animate);
+                    particles.rotation.y += 0.001; // 缓慢旋转
+                    particles.rotation.x += 0.0005;
+                    renderer.render(scene, camera);
+                };
+                animate();
+
+                // 窗口大小调整
+                window.addEventListener('resize', () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            };
+
+            onMounted(() => {
+                initThreeBackground();
+                // 默认加载图谱
+                setTimeout(() => initGraphChart(), 500);
+            });
+
+            return { activeTab, searchValue, recommendItems, navTitle };
+        }
+    });
+
+    app.use(vant);
+    app.mount('#app');
+</script>
+</body>
+</html>

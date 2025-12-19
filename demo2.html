@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>InterestNexus - 毕业设计最终版</title>
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vant/lib/vant.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/vant/lib/index.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #09090b;
+            --card-bg: rgba(30, 30, 40, 0.6);
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --text-main: #ffffff;
+            --text-sub: #b2bec3;
+            --highlight: #f1c40f;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-main);
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 背景 */
+        #canvas-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: radial-gradient(circle at center, #1e1e2f 0%, #000000 100%);
+        }
+
+        /* 布局 */
+        .app-layout {
+            height: 100vh; display: flex; flex-direction: column; overflow-y: scroll;
+            padding-bottom: 90px; scroll-behavior: smooth;
+        }
+
+        /* 通用卡片 */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-title {
+            font-size: 24px; font-weight: 800; margin: 20px 16px 10px;
+            background: linear-gradient(to right, #fff, #a29bfe);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        /* 物品海报网格 (首页) */
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 0 16px;
+        }
+        .media-item {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 2/3;
+        }
+        .media-item img { width: 100%; height: 100%; object-fit: cover; }
+        .media-info {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            padding: 10px; box-sizing: border-box;
+        }
+
+        /* 图谱页推荐列表 */
+        .match-card {
+            display: flex; align-items: center;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px; padding: 12px; margin-bottom: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.3s;
+        }
+        .match-card.active {
+            border-color: #a29bfe;
+            background: rgba(162, 155, 254, 0.1);
+        }
+
+        /* 底部导航 */
+        .floating-tabbar {
+            position: fixed; bottom: 20px; left: 5%; width: 90%; height: 65px;
+            background: rgba(20, 20, 30, 0.85); backdrop-filter: blur(20px);
+            border-radius: 35px; display: flex; justify-content: space-around; align-items: center;
+            border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 100;
+        }
+        .tab-item {
+            display: flex; flex-direction: column; align-items: center; color: #636e72;
+            transition: all 0.3s ease;
+        }
+        .tab-item.active { color: #a29bfe; transform: translateY(-5px); }
+        .tab-item i { font-size: 24px; margin-bottom: 2px; }
+        .tab-item span { font-size: 10px; font-weight: 500; }
+
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        
+        /* 标签样式 */
+        .tag { padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px; }
+        .tag-movie { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+        .tag-book { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+        .tag-music { background: rgba(52, 152, 219, 0.2); color: #3498db; }
+    </style>
+</head>
+<body>
+
+<div id="canvas-bg"></div>
+
+<div id="app">
+    <div class="app-layout">
+        
+        <transition name="fade">
+            <div v-if="activeTab === 0" key="explore">
+                <div class="page-title">探索 / Discovery</div>
+                <van-search v-model="searchVal" placeholder="搜索书籍/电影/音乐..." shape="round" background="transparent"></van-search>
+                
+                <div style="padding: 0 16px; margin-bottom: 10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                        <span style="font-weight:bold; font-size:16px;">📚 猜你喜欢</span>
+                        <span style="font-size:12px; color:var(--text-sub);">基于协同过滤</span>
+                    </div>
+                </div>
+
+                <div class="media-grid">
+                    <div v-for="item in items" :key="item.id" class="media-item">
+                        <img :src="item.cover">
+                        <div class="media-info">
+                            <div style="display:flex; margin-bottom:4px;">
+                                <span class="tag" :class="item.tagClass">{{ item.type }}</span>
+                                <span style="font-size:12px; color:#f1c40f"><i class="ri-star-fill"></i> {{ item.score }}</span>
+                            </div>
+                            <div style="font-weight:bold; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ item.title }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="text-align:center; padding: 20px; color:var(--text-sub); font-size:12px;">
+                    - 到底了，去标记更多兴趣吧 -
+                </div>
+            </div>
+        </transition>
+
+        <transition name="fade">
+            <div v-if="activeTab === 1" key="groups">
+                <div class="page-title">圈子 / Communities</div>
+                <div style="padding: 0 16px;">
+                    <div class="glass-card" v-for="g in groups" :key="g.id" style="display:flex; align-items:center;">
+                        <img :src="g.img" style="width:50px; height:50px; border-radius:12px; object-fit:cover;">
+                        <div style="margin-left:12px; flex:1;">
+                            <div style="font-weight:bold;">{{ g.name }}</div>
+                            <div style="font-size:12px; color:var(--text-sub);">{{ g.desc }}</div>
+                        </div>
+                        <van-button size="mini" plain color="#a29bfe">加入</van-button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="fade">
+            <div v-if="activeTab === 2" key="graph">
+                <div class="page-title">图谱 / Nexus</div>
+                
+                <div style="padding: 0 16px;">
+                    <div class="glass-card" style="padding:0; overflow:hidden; position:relative;">
+                        <div id="nexus-chart" style="width:100%; height:350px;"></div>
+                        <div style="position:absolute; top:10px; left:10px; font-size:10px; color:rgba(255,255,255,0.6); pointer-events:none;">
+                            点击下方列表查看关联路径
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 0 16px;">
+                    <div style="margin-bottom:12px; font-weight:bold;">✨ 灵魂共鸣 (推荐好友)</div>
+                    
+                    <div 
+                        v-for="user in recommendedUsers" 
+                        :key="user.id" 
+                        class="match-card"
+                        :class="{ active: selectedUserId === user.id }"
+                        @click="focusUser(user)"
+                    >
+                        <div style="position:relative;">
+                            <img :src="user.avatar" style="width:48px; height:48px; border-radius:50%;">
+                            <div style="position:absolute; -5px; right:-5px; background:#fab1a0; color:#d63031; font-size:9px; padding:1px 4px; border-radius:4px; font-weight:bold;">
+                                {{ user.match }}%
+                            </div>
+                        </div>
+                        <div style="margin-left:12px; flex:1;">
+                            <div style="font-weight:bold; font-size:15px;">{{ user.name }}</div>
+                            <div style="font-size:11px; color:var(--text-sub); margin-top:4px;">
+                                <i class="ri-link"></i> 推荐理由：共同喜欢 
+                                <span style="color:#a29bfe; font-weight:bold;">{{ user.reason }}</span>
+                            </div>
+                        </div>
+                        <van-icon name="arrow" color="#666" />
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="fade">
+            <div v-if="activeTab === 3" key="profile">
+                <div style="padding: 0 16px; padding-top: 40px;">
+                    <div style="display:flex; align-items:center;">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" style="width:70px; height:70px; border-radius:50%; border:2px solid white;">
+                        <div style="margin-left:16px;">
+                            <div style="font-size:20px; font-weight:bold;">梁金麦</div>
+                            <div style="font-size:12px; color:var(--text-sub);">22级计科2班</div>
+                        </div>
+                    </div>
+                    <div class="glass-card" style="margin-top:20px;">
+                        <van-cell title="我标记的书影音" is-link style="background:transparent; color:white;"></van-cell>
+                        <van-cell title="我的图谱数据" is-link style="background:transparent; color:white;"></van-cell>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+    </div>
+
+    <div class="floating-tabbar">
+        <div class="tab-item" :class="{ active: activeTab === 0 }" @click="activeTab = 0">
+            <i class="ri-compass-3-line"></i><span>发现</span>
+        </div>
+        <div class="tab-item" :class="{ active: activeTab === 1 }" @click="activeTab = 1">
+            <i class="ri-group-line"></i><span>小组</span>
+        </div>
+        <div class="tab-item" :class="{ active: activeTab === 2 }" @click="activeTab = 2">
+            <i class="ri-mind-map"></i><span>图谱</span>
+        </div>
+        <div class="tab-item" :class="{ active: activeTab === 3 }" @click="activeTab = 3">
+            <i class="ri-user-smile-line"></i><span>我的</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            const activeTab = ref(0);
+            const searchVal = ref('');
+            const selectedUserId = ref(null); // 当前选中的推荐用户
+            
+            // 1. 首页推荐数据：纯粹的物品（书/影/音）
+            const items = ref([
+                { id: 1, title: '奥本海默', type: '电影', score: 9.2, tagClass: 'tag-movie', cover: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&q=80' },
+                { id: 2, title: '三体全集', type: '书籍', score: 9.5, tagClass: 'tag-book', cover: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80' },
+                { id: 3, title: 'Dark Side of the Moon', type: '音乐', score: 9.7, tagClass: 'tag-music', cover: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=400&q=80' },
+                { id: 4, title: '赛博朋克:边缘行者', type: '电影', score: 9.0, tagClass: 'tag-movie', cover: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&q=80' },
+                { id: 5, title: 'Vue.js设计与实现', type: '书籍', score: 9.8, tagClass: 'tag-book', cover: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&q=80' },
+                { id: 6, title: 'Interstellar', type: '音乐', score: 9.6, tagClass: 'tag-music', cover: 'https://images.unsplash.com/photo-1459749411177-0473ef71607b?w=400&q=80' },
+            ]);
+
+            // 2. 兴趣小组数据
+            const groups = ref([
+                { id: 1, name: '科幻迷航', desc: '硬科幻爱好者聚集地', img: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=200&q=80' },
+                { id: 2, name: '独立开发', desc: 'Vue/React技术交流', img: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=200&q=80' }
+            ]);
+
+            // 3. 图谱页：推荐好友 + 推荐理由
+            const recommendedUsers = ref([
+                { id: '101', name: 'Alice', match: 98, reason: '《三体》', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice' },
+                { id: '102', name: 'Bob', match: 92, reason: '《Vue.js设计》', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob' },
+                { id: '103', name: 'Carol', match: 85, reason: 'Pink Floyd', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Carol' }
+            ]);
+
+            // Three.js 背景（简化版，保证性能）
+            const initThree = () => {
+                const container = document.getElementById('canvas-bg');
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                container.appendChild(renderer.domElement);
+
+                const geometry = new THREE.BufferGeometry();
+                const count = 600;
+                const pos = new Float32Array(count * 3);
+                for(let i=0; i<count*3; i++) pos[i] = (Math.random()-0.5)*15;
+                geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+                const material = new THREE.PointsMaterial({ size: 0.04, color: 0x764ba2, transparent: true, opacity: 0.5 });
+                const mesh = new THREE.Points(geometry, material);
+                scene.add(mesh);
+                camera.position.z = 5;
+                
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    mesh.rotation.y += 0.0005;
+                    renderer.render(scene, camera);
+                };
+                animate();
+            };
+
+            // ECharts 图谱逻辑
+            let chartInstance = null;
+            const initChart = () => {
+                const dom = document.getElementById('nexus-chart');
+                if(!dom) return;
+                chartInstance = echarts.init(dom);
+
+                // 初始数据：我 + 物品节点 + 推荐用户节点
+                const baseNodes = [
+                    { id: '0', name: '我(Me)', symbolSize: 45, category: 0, fixed: true, x: 300, y: 300 },
+                    // 物品
+                    { id: 'item1', name: '三体', symbolSize: 25, category: 1 },
+                    { id: 'item2', name: 'Vue.js设计', symbolSize: 25, category: 1 },
+                    { id: 'item3', name: 'Pink Floyd', symbolSize: 25, category: 1 },
+                    // 用户
+                    { id: '101', name: 'Alice', symbolSize: 35, category: 2 },
+                    { id: '102', name: 'Bob', symbolSize: 35, category: 2 },
+                    { id: '103', name: 'Carol', symbolSize: 35, category: 2 },
+                ];
+
+                const baseLinks = [
+                    { source: '0', target: 'item1' },
+                    { source: '0', target: 'item2' },
+                    { source: '0', target: 'item3' },
+                    // 初始所有推荐用户都连接到他们喜欢的物品，但置灰
+                    { source: '101', target: 'item1' }, // Alice -> 三体
+                    { source: '102', target: 'item2' }, // Bob -> Vue
+                    { source: '103', target: 'item3' }, // Carol -> Floyd
+                ];
+
+                renderGraph(baseNodes, baseLinks);
+            };
+
+            const renderGraph = (nodes, links) => {
+                const option = {
+                    color: ['#a29bfe', '#74b9ff', '#fab1a0'],
+                    tooltip: {},
+                    series: [{
+                        type: 'graph',
+                        layout: 'force',
+                        data: nodes.map(n => ({
+                            ...n,
+                            // 高亮逻辑：如果选中了某人，或者节点是"我"或"共同物品"，则高亮
+                            itemStyle: isHighlighted(n) ? { opacity: 1, borderColor: '#fff', borderWidth: 2 } : { opacity: 0.3 }
+                        })),
+                        links: links.map(l => ({
+                            ...l,
+                            lineStyle: { 
+                                opacity: isLinkHighlighted(l) ? 0.8 : 0.1,
+                                width: isLinkHighlighted(l) ? 2 : 1,
+                                color: '#fff' 
+                            }
+                        })),
+                        categories: [{name:'我'}, {name:'兴趣物品'}, {name:'推荐好友'}],
+                        roam: true,
+                        label: { show: true, color: '#fff' },
+                        force: { repulsion: 250, edgeLength: 90 }
+                    }]
+                };
+                chartInstance.setOption(option);
+            };
+
+            // 判断节点是否高亮
+            const isHighlighted = (node) => {
+                if (!selectedUserId.value) return true; // 没选人时全高亮
+                if (node.id === '0') return true; // 我永远高亮
+                if (node.id === selectedUserId.value) return true; // 选中的人高亮
+                // 找到选中的人喜欢的物品
+                const targetUser = recommendedUsers.value.find(u => u.id === selectedUserId.value);
+                if (targetUser && node.name.includes(targetUser.reason)) return true; // 共同物品高亮
+                return false;
+            };
+
+            // 判断连线是否高亮
+            const isLinkHighlighted = (link) => {
+                if (!selectedUserId.value) return true;
+                const targetId = selectedUserId.value;
+                // 高亮：我->物品，物品->选中的人
+                // 简化判断：只要连接点涉及高亮节点即可
+                return false; // 这里简单处理，主要靠节点透明度
+            };
+
+            // 点击列表某用户，图谱聚焦
+            const focusUser = (user) => {
+                selectedUserId.value = user.id;
+                // 重新渲染图表以应用透明度变化
+                const option = chartInstance.getOption();
+                // 简单触发重绘，实际上应该更新 data 的 itemStyle
+                initChart(); 
+            };
+
+            watch(activeTab, (val) => { 
+                if(val === 2) {
+                    nextTick(() => initChart());
+                } else {
+                    selectedUserId.value = null; // 离开页面重置
+                }
+            });
+
+            onMounted(() => initThree());
+
+            return { activeTab, searchVal, items, groups, recommendedUsers, selectedUserId, focusUser };
+        }
+    }).use(vant).mount('#app');
+</script>
+</body>
+</html>

@@ -14,16 +14,16 @@
     </template>
     <template #bottom>
       <div>
-        <p>队长：{{ team.createUser?.username }}</p>
+        <p>发起人：{{ team.createUser?.username }}</p>
       </div>
       <div>
-        <p>队伍人数：{{ team.hasJoinNum }}/ {{ team.maxNum }}</p>
+        <p>小组人数：{{ team.hasJoinNum }}/ {{ team.maxNum }}</p>
       </div>
       <div v-if="team.createTime">
         <p>创建时间：{{ team.createTime }}</p>
       </div>
       <div v-if="team.expireTime">
-        <p>过期时间: {{ team.expireTime }}</p>
+        <p>过期时间：{{ team.expireTime }}</p>
       </div>
     </template>
     <template #footer>
@@ -31,13 +31,13 @@
         size="mini"
         v-if="!team.membersList?.includes(currentUser?.id)"
         @click="joinTeam(team.id)"
-        >加入队伍</van-button
+        >加入小组</van-button
       >
       <van-button
         size="mini"
         v-if="team.userId === currentUser?.id"
         @click="updateTeam(team.id)"
-        >更新队伍</van-button
+        >更新小组</van-button
       >
       <van-button
         size="mini"
@@ -46,21 +46,20 @@
           team.userId !== currentUser?.id
         "
         @click="quitTeam(team.id)"
-        >退出队伍</van-button
+        >退出小组</van-button
       >
       <van-button
         size="mini"
         v-if="team.userId === currentUser?.id"
         @click="deleteTeam(team.id)"
-        >解散队伍</van-button
+        >解散小组</van-button
       >
     </template>
   </van-card>
 
-  <!-- 密码输入弹窗 -->
   <van-dialog
     v-model:show="showPasswordDialog"
-    title="加入加密队伍"
+    title="加入加密小组"
     show-cancel-button
     confirm-button-text="确认"
     cancel-button-text="取消"
@@ -69,20 +68,21 @@
     <van-field
       v-model="passwordInput"
       type="password"
-      placeholder="请输入队伍密码"
+      placeholder="请输入小组密码"
       clearable
     />
   </van-dialog>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { showToast, showDialog } from 'vant'
 import type { TeamType } from '../models/team'
 import { teamStatusEnum } from '../constants/team'
 import { getCurrentUser } from '../api/user'
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import myAxios from '../request'
-import { showToast, showDialog } from 'vant'
+
 interface TeamCardListProps {
   teamsList?: TeamType[]
   loading: boolean
@@ -99,34 +99,24 @@ const props = withDefaults(defineProps<TeamCardListProps>(), {
   loading: true,
 })
 
-// 定义发射事件
 const emit = defineEmits<{
   refresh: []
 }>()
 
-//加入队伍
 const joinTeam = async (id: number) => {
-  // 找到对应的队伍信息
   const team = props.teamsList?.find((t) => t.id === id)
-
-  // 如果是加密队伍，需要输入密码
   if (team?.status === 2) {
-    // 设置当前要加入的队伍ID
     currentTeamId.value = id
-    // 清空密码输入框
     passwordInput.value = ''
-    // 显示密码输入弹窗
     showPasswordDialog.value = true
   } else {
-    // 普通队伍直接加入
     joinTeamWithPassword(id, '')
   }
 }
 
-// 处理密码确认
 const handlePasswordConfirm = () => {
   if (!passwordInput.value.trim()) {
-    showToast('请输入密码')
+    showToast('请输入小组密码')
     return
   }
 
@@ -135,17 +125,11 @@ const handlePasswordConfirm = () => {
     currentTeamId.value = null
   }
 
-  // 关闭弹窗
   showPasswordDialog.value = false
 }
 
-// 带密码加入队伍
 const joinTeamWithPassword = async (id: number, password: string) => {
-  const requestData: any = {
-    teamId: id,
-  }
-
-  // 如果有密码，添加到请求中
+  const requestData: any = { teamId: id }
   if (password) {
     requestData.password = password
   }
@@ -163,7 +147,7 @@ const joinTeamWithPassword = async (id: number, password: string) => {
   if (res?.code === 0) {
     showDialog({
       title: '操作成功',
-      message: '成功加入队伍！',
+      message: '成功加入小组！',
       confirmButtonText: '确定',
     }).then(() => {
       emit('refresh')
@@ -173,22 +157,16 @@ const joinTeamWithPassword = async (id: number, password: string) => {
   }
 }
 
-//更新队伍
 const updateTeam = (id: number) => {
   router.push({
     path: '/team/update',
-    query: {
-      id: id,
-    },
+    query: { id },
   })
 }
 
-//退出队伍
 const quitTeam = async (id: number) => {
   const res = await myAxios
-    .post('/team/quit', {
-      teamId: id,
-    })
+    .post('/team/quit', { teamId: id })
     .then((response: any) => {
       console.log('/team/quit success', response)
       return response?.data
@@ -200,7 +178,7 @@ const quitTeam = async (id: number) => {
   if (res?.code === 0) {
     showDialog({
       title: '操作成功',
-      message: '成功退出队伍！',
+      message: '成功退出小组！',
       confirmButtonText: '确定',
     }).then(() => {
       emit('refresh')
@@ -210,7 +188,6 @@ const quitTeam = async (id: number) => {
   }
 }
 
-//解散队伍
 const deleteTeam = async (id: number) => {
   try {
     const response = await myAxios.post('/team/delete', null, {
@@ -220,7 +197,7 @@ const deleteTeam = async (id: number) => {
     if (data?.code === 0) {
       await showDialog({
         title: '操作成功',
-        message: '成功解散队伍！',
+        message: '成功解散小组！',
         confirmButtonText: '确定',
       })
       emit('refresh')
@@ -239,7 +216,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 标签颜色*/
 .van-tag--danger.van-tag--plain {
   color: #002fff;
 }

@@ -65,6 +65,44 @@ create table mai1.user_team
 )
     comment '用户队伍关系';
 
+CREATE TABLE item
+(
+                      id            BIGINT PRIMARY KEY AUTO_INCREMENT,
+                      item_type     TINYINT NOT NULL COMMENT '类型：1-书籍 2-电影 3-音乐',
+                      title         VARCHAR(255) NOT NULL COMMENT '名称',
+                      cover_url     VARCHAR(512) COMMENT '封面图片',
+                      description   TEXT COMMENT '简介/摘要',
+
+                      creator       VARCHAR(255) COMMENT '作者 / 导演 / 艺术家',
+                      publish_year  INT COMMENT '发行/出版年份',
+
+                      tags          VARCHAR(255) COMMENT '标签（逗号分隔）',
+
+                      popularity    INT DEFAULT 0   COMMENT '热度（点赞/收藏等统计）',
+
+                      create_time    DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL comment '创建时间',
+                      update_time    DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP comment '更新时间',
+                      is_delete   tinyint  default 0                 not null comment '逻辑删除标志'
+)
+    comment '物品表';
+
+CREATE TABLE user_item (
+                                    id         BIGINT PRIMARY KEY AUTO_INCREMENT,
+                                    user_id    BIGINT NOT NULL,
+                                    item_id    BIGINT NOT NULL,
+
+                                    action     TINYINT NOT NULL COMMENT '1-喜欢 2-收藏 3-看过/读过/听过',
+                                    weight     DOUBLE DEFAULT 1.0 COMMENT '边权重',
+
+                                    create_time    DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL comment '创建时间',
+                                    update_time    DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP comment '更新时间',
+                                    is_delete   tinyint  default 0                 not null comment '逻辑删除标志',
+                                    UNIQUE KEY uk_user_item (user_id, item_id)
+)
+
+    comment '用户-物品关系';
+
+
 
 create index uk_tag_user_id
     on mai1.tag (user_id)

@@ -1,6 +1,6 @@
 import axios from 'axios'
 const myAxios = axios.create({
-  baseURL: 'http://localhost:8080/api/',
+  baseURL: '/api/',
   timeout: 5000,
   withCredentials: true,
 })
@@ -21,9 +21,14 @@ myAxios.interceptors.request.use(
 // 添加响应拦截器
 myAxios.interceptors.response.use(
   function (response) {
-    // 2xx 范围内的状态码都会触发该函数。
+    const data = response?.data
+    const config: any = response.config
     // 对响应数据做点什么
-    if (response?.data?.code === 40100) {
+    if (data?.code === 40100) {
+      // 某些请求允许跳过自动重定向
+      if (config?.skipAuthRedirect) {
+        return response
+      }
       const redirectURL = window.location.href
       window.location.href = `login?redirect=${redirectURL}`
     }

@@ -12,6 +12,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TeamCardsList: typeof import('./src/components/TeamCardsList.vue')['default']
+    ThreeBackground: typeof import('./src/components/ThreeBackground.vue')['default']
     UserCardsList: typeof import('./src/components/UserCardsList.vue')['default']
     VanButton: typeof import('vant/es')['Button']
     VanCard: typeof import('vant/es')['Card']

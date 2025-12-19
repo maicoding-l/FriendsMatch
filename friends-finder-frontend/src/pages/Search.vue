@@ -48,7 +48,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import router from '../router'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const OriginalTagsList = [
   { text: '性别', children: [{ text: '男', id: '男' }, { text: '女', id: '女' }] },

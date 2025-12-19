@@ -19,12 +19,13 @@
 </template>
 
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ref } from 'vue'
 import { getCurrentUser } from '../api/user'
 import { showToast } from 'vant'
 import myAxios from '../request'
-import router from '../router'
+
+const router = useRouter()
 const route = useRoute()
 const editUser = ref({
   editName: route.query.editName,
@@ -52,24 +53,21 @@ const editUser = ref({
 
 const onSubmit = async () => {
   try {
-    const currentUserRes = await getCurrentUser();
-    if (!currentUserRes?.data?.data) {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
       showToast("获取当前用户信息失败，无法更新。");
-      return; // 获取失败，直接返回
+      return;
     }
-    const currentUser = currentUserRes.data.data;
 
     const updateRes = await myAxios.post('/user/update', {
       'id': currentUser.id,
       [String(editUser.value.editKey)]: editUser.value.currentValue,
     });
 
-    // 关键修改：判断 updateRes.data.data 而不是 updateRes.data
     if (updateRes.data.code === 0 && updateRes.data.data > 0) {
       showToast("更新用户信息成功");
       router.back();
     } else {
-      // 给出更详细的失败原因
       showToast(updateRes.data.message || "更新用户信息失败");
     }
   } catch (error) {
