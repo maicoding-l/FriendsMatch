@@ -8,6 +8,7 @@ import com.mai.friendsFinder.model.User;
 import com.mai.friendsFinder.model.request.DeleteRequest;
 import com.mai.friendsFinder.model.request.UserLoginRequest;
 import com.mai.friendsFinder.model.request.UserRegisterRequest;
+import com.mai.friendsFinder.model.vo.UserMatchVO;
 import com.mai.friendsFinder.service.UserService;
 import com.mai.friendsFinder.common.BaseResponse;
 import com.mai.friendsFinder.exception.BusinessException;
@@ -207,6 +208,56 @@ public class UserController {
         }
         List<User> userList = userService.matchUsers(num,loginUser);
         return ResultUtils.success(userList);
+    }
+
+    /**
+     * 匹配用户（包含共同物品信息）
+     *
+     * @param num 匹配数量
+     * @param request HTTP请求
+     * @return 用户匹配结果列表（包含共同物品）
+     */
+    @Operation(summary = "匹配用户（包含共同物品）")
+    @GetMapping("/match/withCommonItems")
+    public BaseResponse<List<UserMatchVO>> matchUsersWithCommonItems(Long num, HttpServletRequest request){
+        User loginUser = userService.getLoginUser(request);
+        if(loginUser == null){
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        if(num==null ||num <= 0){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        List<UserMatchVO> userMatchList = userService.matchUsersWithCommonItems(num, loginUser);
+        return ResultUtils.success(userMatchList);
+    }
+
+    /**
+     * 根据用户ID获取用户信息
+     *
+     * @param id 用户ID
+     * @param request HTTP请求
+     * @return 用户信息
+     */
+    @Operation(summary = "根据ID获取用户信息")
+    @GetMapping("/{id}")
+    public BaseResponse<User> getUserById(@PathVariable Long id, HttpServletRequest request){
+        // 验证是否登录
+        User loginUser = userService.getLoginUser(request);
+        if(loginUser == null){
+            throw new BusinessException(ErrorCode.NOT_LOGIN);
+        }
+        // 验证参数
+        if(id == null || id <= 0){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        // 获取用户信息
+        User user = userService.getById(id);
+        if(user == null){
+            throw new BusinessException(ErrorCode.NULL_ERROR, "用户不存在");
+        }
+        // 返回脱敏后的用户信息
+        User safetyUser = userService.getSafetyUser(user);
+        return ResultUtils.success(safetyUser);
     }
 
 }

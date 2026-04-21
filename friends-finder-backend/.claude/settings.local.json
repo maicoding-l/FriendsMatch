@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvnw.cmd clean:*)",
+      "Bash(.mvnw.cmd clean compile)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(del \"C:\\Users\\ljm\\Documents\\friendsFinder\\friends-finder-frontend\\src\\components\\ThreeBackground.vue\")",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm list:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm run dev)",
+      "Bash(timeout /t 3)",
+      "Bash(exit 0)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

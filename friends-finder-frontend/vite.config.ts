@@ -11,7 +11,7 @@ export default defineConfig({
       resolvers: [VantResolver()],
     }),
     Components({
-      resolvers: [VantResolver()],
+      resolvers: [VantResolver({ importStyle: false })],
     }),
   ],
   server: {
@@ -19,6 +19,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        ws: true,
       },
     },
   },

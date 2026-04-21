@@ -1,0 +1,51 @@
+package com.mai.friendsFinder.model.request;
+
+import lombok.Data;
+
+import java.io.Serial;
+import java.io.Serializable;
+
+/**
+ * 物品新增请求
+ */
+@Data
+public class ItemAddRequest implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 7192485619262345889L;
+
+    /**
+     * 类型：1-书籍 2-电影 3-音乐
+     */
+    private Integer itemType;
+
+    /**
+     * 名称
+     */
+    private String title;
+
+    /**
+     * 封面图片
+     */
+    private String coverUrl;
+
+    /**
+     * 简介/摘要
+     */
+    private String description;
+
+    /**
+     * 作者 / 导演 / 艺术家
+     */
+    private String creator;
+
+    /**
+     * 发行/出版年份
+     */
+    private Integer publishYear;
+
+    /**
+     * 标签（逗号分隔）
+     */
+    private String tags;
+}

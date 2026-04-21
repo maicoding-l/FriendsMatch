@@ -14,7 +14,6 @@
         v-model="value"
         placeholder="搜索兴趣关键字"
         shape="round"
-        background="rgba(255,255,255,0.02)"
         @search="onSearch"
       />
 
@@ -47,6 +46,7 @@
             v-for="group in teamsList"
             :key="group.id"
             class="community-card glass-card"
+            @click="goToTeamDetail(group)"
           >
             <img :src="coverFor(group)" class="community-cover" alt="" />
             <div class="community-body">
@@ -57,7 +57,31 @@
                 <span><i class="ri-timer-line"></i> {{ group.status === 0 ? '公开' : '加密' }}</span>
               </div>
             </div>
-            <van-button size="mini" color="#6c5ce7" plain @click="doJoinTeam(group)">
+            <van-button
+              v-if="isUserJoined(group)"
+              size="mini"
+              disabled
+              plain
+              @click.stop
+            >
+              已加入
+            </van-button>
+            <van-button
+              v-else-if="group.hasJoinNum >= group.maxNum"
+              size="mini"
+              disabled
+              plain
+              @click.stop
+            >
+              已满
+            </van-button>
+            <van-button
+              v-else
+              size="mini"
+              :color="getComputedColor()"
+              plain
+              @click.stop="doJoinTeam(group)"
+            >
               加入
             </van-button>
           </div>
@@ -74,15 +98,18 @@
 <script lang="ts" setup>
 import { useRouter } from 'vue-router'
 import { ref, onMounted } from 'vue'
-import { showToast } from 'vant'
+import { showToast, showDialog } from 'vant'
 import type { TeamType } from '../models/team'
 import myAxios from '../request'
+import { getCurrentUser } from '../api/user'
+import type { UserType } from '../models/user'
 
 const router = useRouter()
 const teamsList = ref<TeamType[]>([])
 const value = ref('')
 const loading = ref(true)
 const active = ref(0) // 0: public, 1: private (encryption)
+const currentUser = ref<UserType | null>(null)
 
 const coverFallbacks = [
   'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&q=80',
@@ -103,11 +130,86 @@ const toTeamAddPage = () => {
   })
 }
 
-const doJoinTeam = (team: TeamType) => {
-    router.push({
-      path: '/user/join',
-      query: { teamId: team.id },
+const goToTeamDetail = (team: TeamType) => {
+  router.push({
+    path: '/team/detail',
+    query: { teamId: team.id }
+  })
+}
+
+const isUserJoined = (team: TeamType) => {
+  if (!currentUser.value || !team.membersList) {
+    return false
+  }
+  return team.membersList.includes(currentUser.value.id)
+}
+
+const doJoinTeam = async (team: TeamType) => {
+  // 检查是否已满
+  if (team.hasJoinNum >= team.maxNum) {
+    showToast('队伍已满')
+    return
+  }
+
+  // 如果是加密小组，需要输入密码
+  if (team.status === 2) {
+    let password = ''
+    showDialog({
+      title: '加入加密小组',
+      message: '<input type="password" id="team-password-input" placeholder="请输入小组密码" style="width: 100%; padding: 8px; margin-top: 12px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;" />',
+      showCancelButton: true,
+      confirmButtonText: '加入',
+      cancelButtonText: '取消',
+      allowHtml: true,
+      beforeClose: async (action) => {
+        if (action === 'confirm') {
+          password = (document.getElementById('team-password-input') as HTMLInputElement)?.value || ''
+          if (!password) {
+            showToast('请输入密码')
+            return false
+          }
+          await joinTeamRequest(team.id, password)
+          return true
+        }
+        return true
+      },
+    }).catch(() => {
+      // 用户取消
     })
+  } else {
+    // 公开小组直接加入
+    await joinTeamRequest(team.id)
+  }
+}
+
+const joinTeamRequest = async (teamId: number, password?: string) => {
+  try {
+    const postData: any = { teamId }
+    if (password) {
+      postData.password = password
+    }
+
+    const res = await myAxios.post('/team/join', postData)
+
+    if (res?.data?.code === 0) {
+      showToast('加入成功')
+      // 刷新列表
+      listTeam(value.value)
+    } else {
+      showToast(res?.data?.message || res?.data?.description || '加入失败')
+    }
+  } catch (error) {
+    console.error('加入小组失败:', error)
+    showToast('加入失败，请重试')
+  }
+}
+
+const getComputedColor = () => {
+  // 从 CSS 变量中获取主色
+  const primaryColor = getComputedStyle(document.documentElement)
+    .getPropertyValue('--color-primary-500')
+    .trim()
+  return primaryColor || '#5B61EA'
 }
 
 
@@ -153,30 +255,23 @@ const onRefresh = () => {
 }
 
 onMounted(async () => {
+  // 获取当前用户信息
+  currentUser.value = await getCurrentUser()
+  // 加载小组列表
   listTeam('')
 })
 </script>
 
 <style scoped>
 @import url('https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css');
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
-
-:global(:root) {
-  --bg-color: transparent;
-  --card-bg: rgba(24, 24, 35, 0.6);
-  --glass-stroke: rgba(255, 255, 255, 0.08);
-  --text-main: #ffffff;
-  --text-sub: #9fa6b2;
-  --accent: #a29bfe;
-}
 
 .nexus-page {
   position: relative;
   min-height: 100vh;
-  background: var(--bg-color);
-  color: var(--text-main);
+  background: transparent;
+  color: var(--color-text-primary);
   overflow-y: auto;
-  font-family: 'Space Grotesk', 'SF Pro Display', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-family-base);
 }
 
 .app-shell {
@@ -196,7 +291,7 @@ onMounted(async () => {
   font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-sub);
+  color: var(--color-text-secondary);
   margin: 0 0 4px;
 }
 
@@ -206,20 +301,20 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(120deg, #fff, #a29bfe);
+  background: linear-gradient(120deg, var(--color-text-primary), var(--color-primary-400));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .title-row .dot {
-  color: #6c5ce7;
+  color: var(--color-primary-500);
 }
 
 .subtitle {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-sub);
+  color: var(--color-text-secondary);
   -webkit-text-fill-color: currentColor;
 }
 
@@ -234,22 +329,24 @@ onMounted(async () => {
   border-radius: 20px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-sub);
-  background: rgba(255,255,255,0.05);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .tab-pill.active {
-  background: #6c5ce7;
-  color: #fff;
+  background: var(--color-primary-500);
+  color: var(--color-text-inverse);
+  border-color: var(--color-primary-500);
 }
 
 .glass-card {
-  background: var(--card-bg);
-  border: 1px solid var(--glass-stroke);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 16px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(var(--glass-blur));
 }
 
 .communities {
@@ -282,12 +379,12 @@ onMounted(async () => {
   font-weight: 700;
   font-size: 15px;
   margin-bottom: 2px;
-  color: #fff;
+  color: var(--color-text-primary);
 }
 
 .community-desc {
   font-size: 12px;
-  color: var(--text-sub);
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -298,7 +395,7 @@ onMounted(async () => {
   display: flex;
   gap: 12px;
   font-size: 11px;
-  color: var(--text-sub);
+  color: var(--color-text-tertiary);
   opacity: 0.8;
 }
 
@@ -315,13 +412,13 @@ onMounted(async () => {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: #6c5ce7;
-  color: #fff;
+  background: var(--color-primary-500);
+  color: var(--color-text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.4);
+  box-shadow: 0 4px 12px var(--shadow-lg);
   z-index: 10;
   cursor: pointer;
 }
@@ -329,5 +426,23 @@ onMounted(async () => {
 .empty-state {
   margin-top: 40px;
   opacity: 0.6;
+}
+
+/* 覆盖 Vant Search 的样式以适配主题 */
+:deep(.van-search) {
+  background: var(--color-surface-base);
+}
+
+:deep(.van-search__content) {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+}
+
+:deep(.van-field__control) {
+  color: var(--color-text-primary);
+}
+
+:deep(.van-field__control::placeholder) {
+  color: var(--color-text-tertiary);
 }
 </style>

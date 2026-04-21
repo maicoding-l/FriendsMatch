@@ -102,9 +102,128 @@ CREATE TABLE user_item (
 
     comment '用户-物品关系';
 
+-- 好友申请表
+CREATE TABLE friend_request (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'id',
+    from_user_id BIGINT NOT NULL COMMENT '发起申请的用户id',
+    to_user_id BIGINT NOT NULL COMMENT '接收申请的用户id',
+    status TINYINT DEFAULT 0 NOT NULL COMMENT '状态：0-待处理，1-已同意，2-已拒绝',
+    message VARCHAR(512) COMMENT '申请消息',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    is_delete TINYINT DEFAULT 0 NOT NULL COMMENT '逻辑删除标志',
+    UNIQUE KEY uk_from_to (from_user_id, to_user_id) COMMENT '防止重复申请'
+) COMMENT '好友申请表';
 
+-- 好友关系表
+CREATE TABLE friend (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'id',
+    user_id BIGINT NOT NULL COMMENT '用户id',
+    friend_id BIGINT NOT NULL COMMENT '好友id',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    is_delete TINYINT DEFAULT 0 NOT NULL COMMENT '逻辑删除标志',
+    UNIQUE KEY uk_user_friend (user_id, friend_id) COMMENT '防止重复好友关系',
+    INDEX idx_user_id (user_id) COMMENT '用户id索引'
+) COMMENT '好友关系表';
+
+-- 聊天消息表
+CREATE TABLE message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '消息ID',
+    from_user_id BIGINT NOT NULL COMMENT '发送者用户ID',
+    to_user_id BIGINT NOT NULL COMMENT '接收者用户ID',
+    content TEXT NOT NULL COMMENT '消息内容',
+    type TINYINT DEFAULT 0 NOT NULL COMMENT '消息类型：0-文本，1-图片，2-文件',
+    status TINYINT DEFAULT 0 NOT NULL COMMENT '消息状态：0-未读，1-已读',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    is_delete TINYINT DEFAULT 0 NOT NULL COMMENT '逻辑删除标志',
+    INDEX idx_from_user (from_user_id) COMMENT '发送者索引',
+    INDEX idx_to_user (to_user_id) COMMENT '接收者索引',
+    INDEX idx_create_time (create_time) COMMENT '创建时间索引'
+) COMMENT '聊天消息表';
+
+-- 小组帖子表
+CREATE TABLE team_post (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '帖子ID',
+    team_id BIGINT NOT NULL COMMENT '所属小组ID',
+    user_id BIGINT NOT NULL COMMENT '发帖用户ID',
+    title VARCHAR(256) NOT NULL COMMENT '帖子标题',
+    content TEXT NOT NULL COMMENT '帖子内容',
+    view_count INT DEFAULT 0 COMMENT '浏览次数',
+    like_count INT DEFAULT 0 COMMENT '点赞数',
+    comment_count INT DEFAULT 0 COMMENT '评论数',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    is_delete TINYINT DEFAULT 0 NOT NULL COMMENT '逻辑删除标志',
+    INDEX idx_team_id (team_id) COMMENT '小组ID索引',
+    INDEX idx_user_id (user_id) COMMENT '用户ID索引',
+    INDEX idx_create_time (create_time) COMMENT '创建时间索引'
+) COMMENT '小组帖子表';
+
+-- 帖子评论表
+CREATE TABLE post_comment (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '评论ID',
+    post_id BIGINT NOT NULL COMMENT '所属帖子ID',
+    user_id BIGINT NOT NULL COMMENT '评论用户ID',
+    content TEXT NOT NULL COMMENT '评论内容',
+    parent_id BIGINT DEFAULT NULL COMMENT '父评论ID（回复评论时使用）',
+    reply_to_user_id BIGINT DEFAULT NULL COMMENT '回复给哪个用户',
+    like_count INT DEFAULT 0 COMMENT '点赞数',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    is_delete TINYINT DEFAULT 0 NOT NULL COMMENT '逻辑删除标志',
+    INDEX idx_post_id (post_id) COMMENT '帖子ID索引',
+    INDEX idx_user_id (user_id) COMMENT '用户ID索引',
+    INDEX idx_parent_id (parent_id) COMMENT '父评论ID索引'
+) COMMENT '帖子评论表';
+
+-- 物品短评表
+CREATE TABLE item_review (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '短评ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    item_id BIGINT NOT NULL COMMENT '物品ID',
+    content TEXT NOT NULL COMMENT '短评内容',
+    rating DOUBLE COMMENT '评分（1.0-5.0）',
+    like_count INT DEFAULT 0 COMMENT '点赞数',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    is_delete TINYINT DEFAULT 0 NOT NULL COMMENT '逻辑删除标志',
+    INDEX idx_item_id (item_id) COMMENT '物品ID索引',
+    INDEX idx_user_id (user_id) COMMENT '用户ID索引',
+    UNIQUE KEY uk_user_item (user_id, item_id) COMMENT '用户-物品唯一索引'
+) COMMENT '物品短评表';
+
+-- 短评点赞表
+CREATE TABLE review_like (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '点赞ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    review_id BIGINT NOT NULL COMMENT '短评ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL COMMENT '创建时间',
+    is_delete TINYINT DEFAULT 0 NOT NULL COMMENT '逻辑删除标志',
+    UNIQUE KEY uk_user_review (user_id, review_id) COMMENT '用户-短评唯一索引'
+) COMMENT '短评点赞表';
 
 create index uk_tag_user_id
     on mai1.tag (user_id)
     comment '上传用户普通索引';
+
+
+# 创建700个工具人
+DELIMITER //
+CREATE PROCEDURE BatchInsertUsers()
+BEGIN
+    DECLARE i INT DEFAULT 1;
+    WHILE i <= 700 DO
+            INSERT INTO user (id, user_account, username, user_password, create_time, update_time, is_delete, user_role)
+            VALUES (i, CONCAT('user_', i), CONCAT('User ', i), 'a64001e2f8d5398be63a9f144131f1db', NOW(), NOW(), 0, 0);
+            SET i = i + 1;
+        END WHILE;
+END //
+DELIMITER ;
+
+-- 执行存储过程
+CALL BatchInsertUsers();
+-- 删除存储过程（清理）
+DROP PROCEDURE BatchInsertUsers;
 

@@ -3,6 +3,7 @@ package com.mai.friendsFinder.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.mai.friendsFinder.model.User;
+import com.mai.friendsFinder.model.vo.UserMatchVO;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.ibatis.annotations.Param;
 
@@ -96,5 +97,14 @@ public interface UserService extends IService<User> {
      * @return
      */
     public List<User> matchUsers (long num , User loginUser);
+
+    /**
+     * 用户匹配（包含共同物品信息）
+     *
+     * @param num 匹配数量
+     * @param loginUser 当前登录用户
+     * @return 用户匹配结果列表（包含共同物品）
+     */
+    public List<UserMatchVO> matchUsersWithCommonItems(long num, User loginUser);
 
 }

@@ -23,7 +23,7 @@
           <div class="section-header">
             <div>
               <p class="section-kicker">猜你会喜欢</p>
-              <p class="section-sub">简单按照热度取前几条，先看这里</p>
+              <p class="section-sub">基于随机游走算法的个性化推荐</p>
             </div>
             <van-button
               size="small"
@@ -37,31 +37,37 @@
             </van-button>
           </div>
 
-          <div class="media-grid">
-            <div
-              v-for="(item, index) in filteredItems"
-              :key="item.id ?? index"
-              class="media-card"
-              @click="toItemDetail(item.id)"
-            >
-              <img :src="coverFor(item, index)" :alt="item.title" />
-              <div class="media-info">
-                <div class="meta-row">
-                  <span class="tag" :class="tagClass(item.itemType)">{{
-                    typeLabel(item.itemType)
-                  }}</span>
-                  <span class="score">
-                    <i class="ri-star-fill"></i>
-                    {{ scoreFor(item.popularity).toFixed(1) }}
-                  </span>
+          <van-list
+            v-model:loading="loadingMore"
+            :finished="finished"
+            finished-text="- 滑到底啦，去标记更多兴趣吧 -"
+            @load="onLoadMore"
+            :immediate-check="false"
+          >
+            <div class="media-grid">
+              <div
+                v-for="(item, index) in filteredItems"
+                :key="item.id ?? index"
+                class="media-card"
+                @click="toItemDetail(item.id)"
+              >
+                <img :src="coverFor(item, index)" :alt="item.title" />
+                <div class="media-info">
+                  <div class="meta-row">
+                    <span class="tag" :class="tagClass(item.itemType)">{{
+                      typeLabel(item.itemType)
+                    }}</span>
+                    <span class="score">
+                      <i class="ri-star-fill"></i>
+                      {{ scoreFor(item.popularity).toFixed(1) }}
+                    </span>
+                  </div>
+                  <div class="media-title">{{ item.title }}</div>
+                  <div v-if="item.creator" class="media-sub">{{ item.creator }}</div>
                 </div>
-                <div class="media-title">{{ item.title }}</div>
-                <div v-if="item.creator" class="media-sub">{{ item.creator }}</div>
               </div>
             </div>
-          </div>
-
-          <div class="list-end-hint">- 滑到底啦，去标记更多兴趣吧 -</div>
+          </van-list>
         </section>
       </transition>
     </div>
@@ -69,16 +75,28 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeUnmount, onMounted, onActivated, ref, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
-import { getItemRecommendations } from '../api/item'
+import { getItemRecommendationsByRandomWalk } from '../api/item'
+import { getCurrentUser } from '../api/user'
 import type { ItemType } from '../models/item'
+import type { UserType } from '../models/user'
 
 const router = useRouter()
+const route = useRoute()
 const searchValue = ref('')
 const items = ref<ItemType[]>([])
 const itemLoading = ref(false)
+const currentUser = ref<UserType>()
+const hasLoadedOnce = ref(false)
+
+// 加载更多相关状态
+const loadingMore = ref(false)
+const finished = ref(false)
+const currentTopN = ref(12)  // 初始加载12个
+const LOAD_MORE_SIZE = 12  // 每次加载更多12个
+const MAX_CACHE_SIZE = 100  // 缓存最多100个
 
 const toItemDetail = (id: number) => {
   router.push(`/item/${id}`)
@@ -172,13 +190,24 @@ const filteredItems = computed(() => {
   )
 })
 
-const fetchItems = async () => {
+const fetchItems = async (topN?: number) => {
   itemLoading.value = true
   try {
-    const res = await getItemRecommendations(8)
+    if (!currentUser.value) {
+      showToast('请先登录')
+      return
+    }
+    const requestTopN = topN || currentTopN.value
+    const res = await getItemRecommendationsByRandomWalk(currentUser.value.id, requestTopN)
     const payload = (res as any)?.data
     if (payload?.code === 0 && Array.isArray(payload.data)) {
       items.value = payload.data
+      // 检查是否已加载完所有缓存的物品
+      if (payload.data.length < requestTopN || payload.data.length >= MAX_CACHE_SIZE) {
+        finished.value = true
+      } else {
+        finished.value = false
+      }
     } else if (payload?.code !== 0) {
       showToast(payload?.description || '获取推荐失败')
     }
@@ -192,12 +221,69 @@ const fetchItems = async () => {
 
 
 
+// 加载更多物品
+const onLoadMore = async () => {
+  if (finished.value) {
+    loadingMore.value = false
+    return
+  }
+
+  loadingMore.value = true
+  try {
+    // 增加要请求的物品数量
+    currentTopN.value = Math.min(currentTopN.value + LOAD_MORE_SIZE, MAX_CACHE_SIZE)
+
+    if (!currentUser.value) {
+      loadingMore.value = false
+      return
+    }
+
+    const res = await getItemRecommendationsByRandomWalk(currentUser.value.id, currentTopN.value)
+    const payload = (res as any)?.data
+
+    if (payload?.code === 0 && Array.isArray(payload.data)) {
+      items.value = payload.data
+
+      // 检查是否已加载完所有缓存的物品
+      if (payload.data.length < currentTopN.value || payload.data.length >= MAX_CACHE_SIZE) {
+        finished.value = true
+      }
+    }
+  } catch (error) {
+    console.error('加载更多失败', error)
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+// 刷新推荐列表
 const refreshItems = () => {
+  // 重置加载状态
+  currentTopN.value = 12
+  finished.value = false
   fetchItems()
 }
 
-onMounted(() => {
-  fetchItems()
+onMounted(async () => {
+  currentUser.value = await getCurrentUser()
+  if (currentUser.value) {
+    fetchItems()
+    hasLoadedOnce.value = true
+  }
+})
+
+// 监听路由变化，当用户返回首页时自动刷新推荐
+watch(() => route.path, (newPath, oldPath) => {
+  // 如果已经加载过一次，且现在回到首页，且之前不在首页
+  if (hasLoadedOnce.value && newPath === '/' && oldPath && oldPath !== '/') {
+    console.log('用户返回首页，自动刷新推荐')
+    if (currentUser.value) {
+      // 重置加载状态
+      currentTopN.value = 12
+      finished.value = false
+      fetchItems()
+    }
+  }
 })
 
 onBeforeUnmount(() => {
@@ -215,13 +301,14 @@ onBeforeUnmount(() => {
   --text-main: #ffffff;
   --text-sub: #9fa6b2;
   --accent: #a29bfe;
+  --accent-warm: oklch(68% 0.18 40);  /* Warm coral accent */
 }
 
 .nexus-page {
   position: relative;
   min-height: 100vh;
-  background: var(--bg-color);
-  color: var(--text-main);
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
   overflow: hidden;
   font-family: 'Space Grotesk', 'SF Pro Display', system-ui, -apple-system, sans-serif;
 }
@@ -254,7 +341,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-sub);
+  color: var(--color-text-tertiary);
   margin: 0 0 4px;
 }
 
@@ -264,20 +351,20 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(120deg, #fff, #a29bfe);
+  background: linear-gradient(120deg, var(--color-text-primary), var(--color-primary-500));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .title-row .dot {
-  color: #6c5ce7;
+  color: var(--color-primary-500);
 }
 
 .subtitle {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-sub);
+  color: var(--color-text-secondary);
   -webkit-text-fill-color: currentColor;
 }
 
@@ -291,11 +378,15 @@ onBeforeUnmount(() => {
 .section-kicker {
   font-weight: 700;
   margin: 0;
+  background: linear-gradient(135deg, var(--text-main), var(--color-category-music, oklch(78% 0.13 240)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .section-sub {
   margin: 2px 0 0;
-  color: var(--text-sub);
+  color: var(--color-text-secondary);
   font-size: 12px;
 }
 
@@ -310,9 +401,31 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border-radius: 14px;
   aspect-ratio: 2 / 3;
-  background: var(--card-bg);
-  border: 1px solid var(--glass-stroke);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-lg);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.media-card:hover {
+  border-color: var(--color-border-default);
+  box-shadow: var(--shadow-xl), 0 0 0 1px var(--color-primary-500);
+  transform: translateY(-4px);
+}
+
+.media-card:active {
+  transform: translateY(-2px);
+  transition-duration: 0.1s;
+}
+
+/* 浅色模式下的卡片特殊样式 */
+[data-theme="light"] .media-card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .media-card:hover {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12), 0 0 0 2px var(--color-primary-500);
 }
 
 .media-card img {
@@ -345,23 +458,33 @@ onBeforeUnmount(() => {
 }
 
 .tag-movie {
-  background: rgba(231, 76, 60, 0.25);
+  background: var(--color-category-movie-bg, oklch(35% 0.10 15 / 0.15));
+  color: var(--color-category-movie, oklch(75% 0.14 15));
+  border: 1px solid var(--color-category-movie-subtle, oklch(65% 0.14 15 / 0.25));
 }
 
 .tag-book {
-  background: rgba(46, 204, 113, 0.25);
+  background: var(--color-category-book-bg, oklch(35% 0.08 160 / 0.15));
+  color: var(--color-category-book, oklch(78% 0.12 160));
+  border: 1px solid var(--color-category-book-subtle, oklch(68% 0.12 160 / 0.25));
 }
 
 .tag-music {
-  background: rgba(52, 152, 219, 0.25);
+  background: var(--color-category-music-bg, oklch(35% 0.09 240 / 0.15));
+  color: var(--color-category-music, oklch(78% 0.13 240));
+  border: 1px solid var(--color-category-music-subtle, oklch(68% 0.13 240 / 0.25));
 }
 
 .score {
   font-size: 12px;
-  color: #f1c40f;
+  color: var(--color-rating, oklch(80% 0.14 85));
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+.score i {
+  filter: drop-shadow(0 0 4px var(--color-rating-subtle, oklch(80% 0.14 85 / 0.3)));
 }
 
 .media-title {

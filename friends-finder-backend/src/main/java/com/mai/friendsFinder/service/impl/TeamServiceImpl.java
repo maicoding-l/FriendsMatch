@@ -60,9 +60,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         }
         final long userId = loginUser.getId();
     //        3. 校验信息
-    //        a. 队伍人数 > 1 且 <= 20
+    //        a. 队伍人数 > 1 且 <= 10000
         int maxNum = Optional.ofNullable(team.getMaxNum()).orElse(0);
-        if(maxNum<1||maxNum>20){
+        if(maxNum<1||maxNum>10000){
             throw new BusinessException(ErrorCode.PARAMS_ERROR,"队伍人数不合规定");
         }
     //        b. 队伍标题 <= 20
@@ -91,12 +91,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             }
         }
 
-    //        f. 超时时间 > 当前时间
-        Date expireTime = team.getExpireTime();
-        if(new Date().after(expireTime)){
-            throw new BusinessException(ErrorCode.PARAMS_ERROR,"过期日设置不正确");
-        }
-    //        g. 校验用户最多创建 5 个队伍
+    //        f. 校验用户最多创建 5 个队伍
         QueryWrapper<Team> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("USER_ID",userId);
         long count = this.count(queryWrapper);
@@ -179,8 +174,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             }
             queryWrapper.eq("STATUS",statusEnum.getValue());
         }
-        //不展示已过期的队伍
-        queryWrapper.and(qw->qw.gt("expire_time",new Date()).or().isNull("expire_time"));
 
         List<Team> teamList = this.list(queryWrapper);
         if(CollectionUtils.isEmpty(teamList)){

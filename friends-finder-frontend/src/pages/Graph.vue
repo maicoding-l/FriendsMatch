@@ -8,7 +8,7 @@
           <div class="title-row">
             <span>图谱联结</span>
             <span class="dot">•</span>
-            <span class="subtitle">mock 数据演示互动</span>
+            <span class="subtitle">基于随机游走算法</span>
           </div>
         </div>
 
@@ -20,12 +20,22 @@
         <div class="section-header compact">
           <div>
             <p class="section-kicker">灵魂共鸣 · 推荐好友</p>
-            <p class="section-sub">基于共同喜欢的物品（mock）</p>
+            <p class="section-sub">基于共同喜欢的物品</p>
           </div>
+        </div>
+
+        <van-loading v-if="loading" size="24" color="#a29bfe" style="margin: 20px auto">
+          加载中...
+        </van-loading>
+
+        <div v-else-if="recommendedUsers.length === 0" class="empty-state">
+          <p>暂无推荐好友</p>
+          <p class="empty-hint">快去标记一些你喜欢的物品吧！</p>
         </div>
 
         <div
           v-for="user in recommendedUsers"
+          v-else
           :key="user.id"
           class="match-card"
           :class="{ active: selectedUserId === user.id }"
@@ -43,7 +53,18 @@
               <span class="accent">{{ user.reason }}</span>
             </div>
           </div>
-          <van-icon name="arrow" color="#8e9aaf" />
+          <div class="card-actions">
+            <van-button
+              size="small"
+              round
+              plain
+              type="primary"
+              @click="goToUserProfile(user.userId, $event)"
+              class="visit-btn"
+            >
+              访问主页
+            </van-button>
+          </div>
         </div>
       </section>
     </div>
@@ -51,8 +72,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import { getCurrentUser, matchUsersWithCommonItems } from '../api/user'
+import type { UserType } from '../models/user'
+import type { ItemType } from '../models/item'
+
+const route = useRoute()
+const router = useRouter()
+
+// 定义UserMatchVO类型
+interface UserMatchVO {
+  user: UserType
+  commonItems: ItemType[]
+  score?: number
+}
+
+// 定义推荐用户的显示类型
+interface RecommendUser {
+  id: string
+  userId: number  // 添加原始用户ID，用于跳转
+  name: string
+  match: number
+  reason: string
+  avatar: string
+  commonItems: ItemType[]
+}
 
 const bgCanvas = ref<HTMLCanvasElement | null>(null)
 const nexusRef = ref<HTMLDivElement | null>(null)
@@ -62,37 +108,64 @@ let bgAnimation: number | null = null
 let bgResizeHandler: (() => void) | null = null
 
 const selectedUserId = ref<string | null>(null)
+const currentUser = ref<UserType>()
+const loading = ref(false)
+const hasLoadedOnce = ref(false)
 
-const recommendedUsers = ref([
-  {
-    id: 'u1',
-    name: 'Alice',
-    match: 98,
-    reason: '《三体》',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice',
-  },
-  {
-    id: 'u2',
-    name: 'Neo',
-    match: 92,
-    reason: '《黑客帝国》',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Neo',
-  },
-  {
-    id: 'u3',
-    name: 'Carol',
-    match: 88,
-    reason: 'Pink Floyd',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Carol',
-  },
-])
+const recommendedUsers = ref<RecommendUser[]>([])
 
-const mockItems = [
-  { id: 1, title: '三体全套', itemType: 1, creator: '刘慈欣', popularity: 96 },
-  { id: 2, title: '奥本海默', itemType: 2, creator: 'Christopher Nolan', popularity: 92 },
-  { id: 3, title: 'Dark Side of the Moon', itemType: 3, creator: 'Pink Floyd', popularity: 91 },
-  { id: 4, title: '赛博朋克：边缘行者', itemType: 2, popularity: 89 },
-]
+// 所有涉及的物品集合（用于图谱展示）
+const allItems = ref<ItemType[]>([])
+
+/**
+ * 获取推荐用户数据
+ */
+const fetchRecommendedUsers = async () => {
+  loading.value = true
+  try {
+    const res = await matchUsersWithCommonItems(10)
+    const payload = (res as any)?.data
+
+    if (payload?.code === 0 && Array.isArray(payload.data)) {
+      const matchData: UserMatchVO[] = payload.data
+
+      // 转换数据格式
+      recommendedUsers.value = matchData.map((match, index) => {
+        const user = match.user
+        const commonItems = match.commonItems || []
+
+        // 收集所有物品
+        commonItems.forEach((item) => {
+          if (!allItems.value.find((i) => i.id === item.id)) {
+            allItems.value.push(item)
+          }
+        })
+
+        // 计算匹配度（基于共同物品数量，简单模拟）
+        const matchScore = Math.min(99, 70 + commonItems.length * 5)
+
+        return {
+          id: `u${user.id}`,
+          userId: user.id,  // 保留原始用户ID
+          name: user.username || `用户${user.id}`,
+          match: matchScore,
+          reason: commonItems.length > 0 ? commonItems[0].title : '暂无共同物品',
+          avatar: user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,
+          commonItems: commonItems,
+        }
+      })
+
+      console.log('推荐用户数据加载成功:', recommendedUsers.value)
+    } else if (payload?.code !== 0) {
+      showToast(payload?.description || '获取推荐用户失败')
+    }
+  } catch (error) {
+    console.error('获取推荐用户失败:', error)
+    showToast('获取推荐用户失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 const loadEcharts = () =>
   new Promise<any>((resolve, reject) => {
@@ -110,6 +183,13 @@ const loadEcharts = () =>
 const renderGraph = async () => {
   const el = nexusRef.value
   if (!el) return
+
+  // 如果没有数据，不渲染图谱
+  if (allItems.value.length === 0 && recommendedUsers.value.length === 0) {
+    console.log('暂无数据，跳过图谱渲染')
+    return
+  }
+
   try {
     const echarts = await loadEcharts()
     if (chartInstance.value) {
@@ -120,7 +200,7 @@ const renderGraph = async () => {
     }
     chartInstance.value = echarts.init(el)
 
-    const itemNodes = mockItems.map((item) => ({
+    const itemNodes = allItems.value.map((item) => ({
       id: `item-${item.id}`,
       name: item.title,
       symbolSize: 26,
@@ -135,13 +215,27 @@ const renderGraph = async () => {
       category: 2,
     }))
 
-    const links = [
-      ...itemNodes.map((node) => ({ source: 'me', target: node.id })),
-      ...recommendedUsers.value.map((user, index) => ({
-        source: `user-${user.id}`,
-        target: itemNodes[index % itemNodes.length]?.id,
-      })),
-    ]
+    // 构建连接关系：基于真实的共同物品
+    const links: any[] = []
+
+    // 当前用户连接到所有物品
+    itemNodes.forEach((itemNode) => {
+      links.push({ source: 'me', target: itemNode.id })
+    })
+
+    // 推荐用户连接到他们的共同物品
+    recommendedUsers.value.forEach((user) => {
+      user.commonItems.forEach((item) => {
+        const itemNodeId = `item-${item.id}`
+        // 只连接存在的物品节点
+        if (itemNodes.find((n) => n.id === itemNodeId)) {
+          links.push({
+            source: `user-${user.id}`,
+            target: itemNodeId,
+          })
+        }
+      })
+    })
 
     const isNodeHighlighted = (nodeId: string) => {
       if (!selectedUserId.value) return true
@@ -214,6 +308,12 @@ const focusUser = (user: (typeof recommendedUsers.value)[number]) => {
   renderGraph()
 }
 
+// 跳转到用户主页
+const goToUserProfile = (userId: number, event: Event) => {
+  event.stopPropagation()  // 阻止事件冒泡，避免触发 focusUser
+  router.push(`/user/profile/${userId}`)
+}
+
 const initBackground = () => {
   const canvas = bgCanvas.value
   if (!canvas) return
@@ -259,9 +359,33 @@ const initBackground = () => {
   draw()
 }
 
-onMounted(() => {
+onMounted(async () => {
   initBackground()
-  nextTick(() => renderGraph())
+
+  // 获取当前用户
+  currentUser.value = await getCurrentUser()
+
+  if (currentUser.value) {
+    // 获取推荐用户数据
+    await fetchRecommendedUsers()
+    hasLoadedOnce.value = true
+    // 渲染图谱
+    nextTick(() => renderGraph())
+  } else {
+    showToast('请先登录')
+  }
+})
+
+// 监听路由变化，当用户返回图谱页面时自动刷新推荐
+watch(() => route.path, async (newPath, oldPath) => {
+  // 如果已经加载过一次，且现在回到图谱页，且之前不在图谱页
+  if (hasLoadedOnce.value && newPath === '/graph' && oldPath && oldPath !== '/graph') {
+    console.log('用户返回图谱页，自动刷新用户推荐')
+    if (currentUser.value) {
+      await fetchRecommendedUsers()
+      nextTick(() => renderGraph())
+    }
+  }
 })
 
 onBeforeUnmount(() => {
@@ -408,6 +532,12 @@ onBeforeUnmount(() => {
   border: 1px solid var(--glass-stroke);
   border-radius: 12px;
   transition: all 0.2s;
+  cursor: pointer;
+}
+
+.match-card:hover {
+  border-color: rgba(162, 155, 254, 0.4);
+  transform: translateY(-2px);
 }
 
 .match-card.active {
@@ -459,5 +589,40 @@ onBeforeUnmount(() => {
 
 .match-reason .accent {
   color: var(--accent);
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.visit-btn {
+  font-size: 12px;
+  padding: 0 12px;
+  height: 28px;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.visit-btn:hover {
+  background: rgba(162, 155, 254, 0.1);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-sub);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.empty-hint {
+  margin-top: 8px !important;
+  font-size: 12px;
+  opacity: 0.7;
 }
 </style>

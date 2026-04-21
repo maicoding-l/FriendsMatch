@@ -124,10 +124,10 @@ router.beforeEach((to) => {
 
 /* BasicLayout Floating Tabbar Styles */
 :deep(.van-tabbar) {
-  background: rgba(20, 20, 30, 0.65); /* More transparent */
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-top: 1px solid var(--color-border-subtle);
 
   /* Optional: Floating style (uncomment if you want it floating above bottom) */
   /*
@@ -141,15 +141,21 @@ router.beforeEach((to) => {
 
 :deep(.van-tabbar-item) {
   background: transparent;
-  color: #8e9aaf;
+  color: var(--color-text-tertiary);
 }
 
 :deep(.van-tabbar-item--active) {
   background: transparent;
-  color: #a29bfe; /* Matches theme accent */
+  color: var(--color-primary-500);
 }
 
 :deep(.van-hairline--top-bottom:after) {
   border-width: 0;
+}
+
+/* 浅色模式下的底部导航栏 */
+[data-theme="light"] :deep(.van-tabbar) {
+  background: var(--color-surface-raised);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
 }
 </style>

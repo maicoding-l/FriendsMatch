@@ -1,8 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__chrome-devtools__take_snapshot",
-      "mcp__chrome-devtools__click"
+      "WebFetch(domain:localhost)",
+      "Skill(impeccable:frontend-design)"
     ],
     "deny": [],
     "ask": []

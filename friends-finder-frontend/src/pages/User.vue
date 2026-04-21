@@ -25,9 +25,34 @@
         </div>
 
         <div class="glass-card profile-actions">
+           <van-cell title="我的消息" is-link to="/chat">
+             <template #icon>
+               <i class="ri-message-3-line action-icon"></i>
+             </template>
+           </van-cell>
+           <van-cell title="我的好友" is-link to="/friend/list">
+             <template #icon>
+               <i class="ri-user-heart-line action-icon"></i>
+             </template>
+           </van-cell>
+           <van-cell title="好友申请" is-link to="/friend/requests">
+             <template #icon>
+               <i class="ri-user-add-line action-icon"></i>
+             </template>
+           </van-cell>
+           <van-cell title="我的标记" is-link to="/my-marked">
+             <template #icon>
+               <i class="ri-bookmark-line action-icon"></i>
+             </template>
+           </van-cell>
            <van-cell title="我创建的小组" is-link to="/user/create" />
            <van-cell title="我加入的小组" is-link to="/user/join" />
            <van-cell title="账号与安全" is-link arrow-direction="right" />
+           <van-cell title="设置" is-link to="/settings">
+             <template #icon>
+               <i class="ri-settings-3-line action-icon"></i>
+             </template>
+           </van-cell>
         </div>
       </template>
     </div>
@@ -47,118 +72,110 @@ onMounted(async ()=>{
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css');
 
-:global(:root) {
-  --bg-color: transparent;
-  --card-bg: rgba(24, 24, 35, 0.6);
-  --glass-stroke: rgba(255, 255, 255, 0.08);
-  --text-main: #ffffff;
-  --text-sub: #9fa6b2;
-  --accent: #a29bfe;
-}
+/* Using design tokens - no need to import fonts here (loaded globally) */
 
-.nexus-page {
+.user-page {
   position: relative;
   min-height: 100vh;
-  background: var(--bg-color);
-  color: var(--text-main);
-  overflow: hidden;
-  font-family: 'Space Grotesk', 'SF Pro Display', system-ui, -apple-system, sans-serif;
 }
 
 .app-shell {
   position: relative;
-  z-index: 1;
-  min-height: 100vh;
-  padding: 18px 16px 120px;
-  box-sizing: border-box;
+  padding: var(--space-fluid-md) var(--space-4) var(--space-24);
 }
 
+/* Page Header - using standard component pattern */
 .page-title {
-  margin-top: 6px;
+  margin-bottom: var(--space-6);
 }
 
 .eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.1em;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-widest);
   text-transform: uppercase;
-  color: var(--text-sub);
-  margin: 0 0 4px;
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-2);
 }
 
 .title-row {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: linear-gradient(120deg, #fff, #a29bfe);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
 }
 
 .title-row .dot {
-  color: #6c5ce7;
+  color: var(--color-primary-400);
 }
 
 .subtitle {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-sub);
-  -webkit-text-fill-color: currentColor;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-secondary);
 }
 
+/* Profile Card - using card component pattern */
 .glass-card {
-  background: var(--card-bg);
-  border: 1px solid var(--glass-stroke);
-  border-radius: 16px;
-  backdrop-filter: blur(10px);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  transition: all var(--duration-base) var(--ease-out);
 }
 
 .profile-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  margin-top: 24px;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  margin-top: var(--space-6);
 }
 
 .profile-avatar {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-border-default);
 }
 
 .profile-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 4px;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
 }
 
 .profile-sub {
-  font-size: 13px;
-  color: var(--text-sub);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 .profile-actions {
-  margin-top: 16px;
+  margin-top: var(--space-4);
   overflow: hidden;
 }
 
+.action-icon {
+  font-size: 18px;
+  margin-right: var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+/* Van cell customization */
 :deep(.van-cell) {
   background: transparent;
-  color: #fff;
-  padding: 16px 20px;
+  color: var(--color-text-primary);
+  padding: var(--space-4) var(--space-5);
 }
 
 :deep(.van-cell::after) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  left: 20px;
-  right: 20px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  left: var(--space-5);
+  right: var(--space-5);
 }
 
 :deep(.van-cell:last-child::after) {

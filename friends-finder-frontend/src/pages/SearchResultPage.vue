@@ -1,8 +1,8 @@
 <template>
     <div class="search-result-page">
-      <user-cards-list :users-list="usersList"></user-cards-list>
+      <user-cards-list :users-list="usersList" :loading="loading"></user-cards-list>
     </div>
-    <van-empty v-if="usersList?.length===0" description="没有符合的结果" />
+    <van-empty v-if="!loading && usersList?.length===0" description="没有符合的结果" />
 </template>
 
 <script setup lang="ts">
@@ -15,6 +15,7 @@ import UserCardsList from '../components/UserCardsList.vue';
 const route = useRoute();
 const {tags} = route.query;
 const usersList = ref<UserType[]>();
+const loading = ref(true);
 // onMounted(()=>{
 //   myAxios.get(`user/search/tags?tagsNameList=${tags}`)
   // .then((response:any)=>{
@@ -28,6 +29,7 @@ const usersList = ref<UserType[]>();
   // })
 //   })
 onMounted(async ()=>{
+  loading.value = true;
   const usersListData = await myAxios.get('user/search/tags',{
     params:{
       tagsNameList : tags,
@@ -41,6 +43,9 @@ onMounted(async ()=>{
   .catch((error : any)=>{
     console.log('user/search/tags fail',error);
     showToast('请求失败');
+  })
+  .finally(() => {
+    loading.value = false;
   })
   if(usersListData){
     usersListData.forEach((user: { tags: string; }) =>{
